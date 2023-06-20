@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/utils"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/syncx"
@@ -2527,10 +2528,19 @@ func (bc *BlockChain) ValidatePayload(block *types.Block, feeRecipient common.Ad
 	// and dangling prefetcher, without defering each and holding on live refs.
 	defer statedb.StopPrefetcher()
 
+	// Inject balance change tracer
+	// This will allow us to check balance changes of the fee recipient without modifying `Process` method
+	balanceTracer := logger.NewBalanceChangeTracer(feeRecipient, vmConfig.Tracer, statedb)
+	vmConfig.Tracer = balanceTracer
+	vmConfig.Debug = true
+
 	receipts, _, usedGas, err := bc.processor.Process(block, statedb, vmConfig)
 	if err != nil {
 		return err
 	}
+
+	// Get fee recipient balance changes during each transaction execution
+	balanceChanges := balanceTracer.GetBalanceChanges()
 
 	if bc.Config().IsShanghai(header.Time) {
 		if header.WithdrawalsHash == nil {
@@ -2553,6 +2563,48 @@ func (bc *BlockChain) ValidatePayload(block *types.Block, feeRecipient common.Ad
 	if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
 		return err
 	}
+
+	// Validate proposer payment
+	//
+	// We calculate the proposer payment by counting balance increases of the fee recipient account after each transaction.
+	// If the balance decreases for the fee recipient for some transaction, we ignore it,
+	// but we still count profit from the tip of this transaction if the fee recipient is also a coinbase.
+	// If this method of profit calculation fails for some reason, we fall back to the old method of calculating proposer payment
+	// where we look at the last transaction in the block.
+
+	feeRecipientProfit := big.NewInt(0)
+	for i, balanceChange := range balanceChanges {
+		if balanceChange.Sign() > 0 {
+			feeRecipientProfit.Add(feeRecipientProfit, balanceChange)
+		} else {
+			// If the fee recipient balance decreases, it means that the fee recipient sent eth out of the account
+			// or paid for the gas of the transaction.
+			// In this case, we ignore the balance change, but we still count fee profit as a positive balance change if we can.
+			if block.Coinbase() == feeRecipient {
+				if len(receipts) >= i {
+					log.Error("receipts length is less than balance changes length")
+					break
+				}
+				if receipts[i].EffectiveGasPrice != nil {
+					log.Error("effective gas price is nil")
+					break
+				}
+				tip := new(big.Int).Sub(receipts[i].EffectiveGasPrice, block.BaseFee())
+				profit := tip.Mul(tip, new(big.Int).SetUint64(receipts[i].GasUsed))
+				if profit.Sign() < 0 {
+					log.Error("profit is negative")
+					break
+				}
+				feeRecipientProfit.Add(feeRecipientProfit, profit)
+			}
+		}
+	}
+
+	if feeRecipientProfit.Cmp(expectedProfit) >= 0 {
+		return nil
+	}
+
+	log.Warn("proposer payment not enough, trying last tx payment validation", "expected", expectedProfit, "actual", feeRecipientProfit)
 
 	if len(receipts) == 0 {
 		return errors.New("no proposer payment receipt")

@@ -50,6 +50,10 @@ var (
 	testValidatorKey, _ = crypto.HexToECDSA("28c3cd61b687fdd03488e167a5d84f50269df2a4c29a2cfb1390903aa775c5d0")
 	testValidatorAddr   = crypto.PubkeyToAddress(testValidatorKey.PublicKey)
 
+	testBuilderKeyHex = "0bfbbbc68fefd990e61ba645efb84e0a62e94d5fff02c9b1da8eb45fea32b4e0"
+	testBuilderKey, _ = crypto.HexToECDSA(testBuilderKeyHex)
+	testBuilderAddr   = crypto.PubkeyToAddress(testBuilderKey.PublicKey)
+
 	testBalance = big.NewInt(2e18)
 )
 
@@ -166,7 +170,7 @@ func TestValidateBuilderSubmissionV1(t *testing.T) {
 
 func TestValidateBuilderSubmissionV2(t *testing.T) {
 	genesis, preMergeBlocks := generatePreMergeChain(20)
-	os.Setenv("BUILDER_TX_SIGNING_KEY", "0x28c3cd61b687fdd03488e167a5d84f50269df2a4c29a2cfb1390903aa775c5d0")
+	os.Setenv("BUILDER_TX_SIGNING_KEY", testBuilderKeyHex)
 	time := preMergeBlocks[len(preMergeBlocks)-1].Time() + 5
 	genesis.Config.ShanghaiTime = &time
 	n, ethservice := startEthService(t, genesis, preMergeBlocks)
@@ -176,7 +180,7 @@ func TestValidateBuilderSubmissionV2(t *testing.T) {
 	api := NewBlockValidationAPI(ethservice, nil)
 	parent := preMergeBlocks[len(preMergeBlocks)-1]
 
-	api.eth.APIBackend.Miner().SetEtherbase(testValidatorAddr)
+	api.eth.APIBackend.Miner().SetEtherbase(testBuilderAddr)
 
 	// This EVM code generates a log when the contract is created.
 	logCode := common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
@@ -234,7 +238,8 @@ func TestValidateBuilderSubmissionV2(t *testing.T) {
 				ProposerFeeRecipient: proposerAddr,
 				GasLimit:             execData.GasLimit,
 				GasUsed:              execData.GasUsed,
-				Value:                uint256.NewInt(0),
+				// This value is actual profit + 1, validation should fail
+				Value: uint256.NewInt(149842511727213),
 			},
 			ExecutionPayload: payload,
 		},
