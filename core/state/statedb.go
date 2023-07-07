@@ -160,6 +160,10 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 	return sdb, nil
 }
 
+func (s *StateDB) OriginalRoot() common.Hash {
+	return s.originalRoot
+}
+
 // StartPrefetcher initializes a new trie prefetcher to pull in nodes from the
 // state trie concurrently while the state is mutated so that when we reach the
 // commit phase, most of the needed data is already hot.
@@ -824,7 +828,7 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 		return s.validRevisions[i].id >= revid
 	})
 	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revid {
-		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
+		panic(fmt.Errorf("revision id %v cannot be reverted [size: %d] [valid: %d]", revid, len(s.validRevisions), s.validRevisions[idx].id))
 	}
 	snapshot := s.validRevisions[idx].journalIndex
 
