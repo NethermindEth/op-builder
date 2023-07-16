@@ -58,7 +58,7 @@ func (s *EthereumService) BuildBlock(attrs *types.BuilderPayloadAttributes, seal
 		Parent:       attrs.HeadHash,
 		Timestamp:    uint64(attrs.Timestamp),
 		FeeRecipient: attrs.SuggestedFeeRecipient,
-		GasLimit:     attrs.GasLimit,
+		GasLimit:     &attrs.GasLimit,
 		Random:       attrs.Random,
 		Withdrawals:  attrs.Withdrawals,
 		BlockHook:    sealedBlockCallback,

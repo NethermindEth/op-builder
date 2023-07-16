@@ -907,7 +907,7 @@ func TestNewPayloadOnInvalidTerminalBlock(t *testing.T) {
 	args := &miner.BuildPayloadArgs{
 		Parent:       parent.Hash(),
 		Timestamp:    parent.Time() + 1,
-		GasLimit:     0,
+		GasLimit:     nil,
 		Random:       crypto.Keccak256Hash([]byte{byte(1)}),
 		FeeRecipient: parent.Coinbase(),
 	}
@@ -1229,7 +1229,7 @@ func TestNilWithdrawals(t *testing.T) {
 			Parent:       fcState.HeadBlockHash,
 			Timestamp:    test.blockParams.Timestamp,
 			FeeRecipient: test.blockParams.SuggestedFeeRecipient,
-			GasLimit:     0,
+			GasLimit:     nil,
 			Random:       test.blockParams.Random,
 		}).Id()
 		execData, err := api.GetPayloadV2(payloadID)

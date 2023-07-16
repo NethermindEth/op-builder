@@ -246,6 +246,15 @@ func (m *sortedMap) LastElement() *types.Transaction {
 	return cache[len(cache)-1]
 }
 
+// FirstElement returns the first element from the heap (guaranteed to be lowest), thus, the
+// transaction with the lowest nonce. Returns nil if there are no elements.
+func (m *sortedMap) FirstElement() *types.Transaction {
+	if m.Len() == 0 {
+		return nil
+	}
+	return m.Get((*m.index)[0])
+}
+
 // list is a "list" of transactions belonging to an account, sorted by account
 // nonce. The same type can be used both for storing contiguous transactions for
 // the executable/pending queue; and for storing gapped transactions for the non-
@@ -274,6 +283,12 @@ func newList(strict bool) *list {
 // already contained within the list.
 func (l *list) Overlaps(tx *types.Transaction) bool {
 	return l.txs.Get(tx.Nonce()) != nil
+}
+
+// Contains returns whether the  list contains a transaction
+// with the provided nonce.
+func (l *list) Contains(nonce uint64) bool {
+	return l.txs.Get(nonce) != nil
 }
 
 // Add tries to insert a new transaction into the list, returning whether the

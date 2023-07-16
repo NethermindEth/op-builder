@@ -168,6 +168,19 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		v := ctx.Uint64(utils.OverrideShanghai.Name)
 		cfg.Eth.OverrideShanghai = &v
 	}
+
+	if ctx.IsSet(utils.OverrideOptimismBedrock.Name) {
+		cfg.Eth.OverrideOptimismBedrock = flags.GlobalBig(ctx, utils.OverrideOptimismBedrock.Name)
+	}
+	if ctx.IsSet(utils.OverrideOptimismRegolith.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismRegolith.Name)
+		cfg.Eth.OverrideOptimismRegolith = &v
+	}
+	if ctx.IsSet(utils.OverrideOptimism.Name) {
+		override := ctx.Bool(utils.OverrideOptimism.Name)
+		cfg.Eth.OverrideOptimism = &override
+	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth, &cfg.Builder)
 
 	// Configure log filter RPC API.
@@ -216,7 +229,7 @@ func dumpConfig(ctx *cli.Context) error {
 
 	dump := os.Stdout
 	if ctx.NArg() > 0 {
-		dump, err = os.OpenFile(ctx.Args().Get(0), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		dump, err = os.OpenFile(ctx.Args().Get(0), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			return err
 		}

@@ -93,7 +93,7 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	var empty *types.Block
 	for _, worker := range w.workers {
 		var err error
-		empty, _, err = worker.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.GasLimit, args.Random, args.Withdrawals, true, nil)
+		empty, _, err = worker.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.BlockHook, args.Transactions, args.GasLimit)
 		if err != nil {
 			log.Error("could not start async block construction", "isFlashbotsWorker", worker.flashbots.isFlashbots, "#bundles", worker.flashbots.maxMergedBundles)
 			continue
@@ -122,7 +122,7 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		go func(w *worker) {
 			// Update routine done elsewhere!
 			start := time.Now()
-			block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.GasLimit, args.Random, args.Withdrawals, false, args.BlockHook)
+			block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.BlockHook, args.Transactions, args.GasLimit)
 			if err == nil {
 				workerPayload.update(block, fees, time.Since(start))
 			} else {
