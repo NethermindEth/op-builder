@@ -99,6 +99,11 @@ var (
 	evictionInterval         = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval      = 8 * time.Second // Time interval to report transaction pool stats
 	privateTxCleanupInterval = 1 * time.Hour
+
+	// L1 Info Gas Overhead is the amount of gas the the L1 info deposit consumes.
+	// It is removed from the tx pool max gas to better indicate that L2 transactions
+	// are not able to consume all of the gas in a L2 block as the L1 info deposit is always present.
+	l1InfoGasOverhead = uint64(70_000)
 )
 
 var (
@@ -165,6 +170,10 @@ type Config struct {
 	NoLocals  bool             // Whether local transaction handling should be disabled
 	Journal   string           // Journal of local transactions to survive node restarts
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
+
+	// JournalRemote controls whether journaling includes remote transactions or not.
+	// When true, all transactions loaded from the journal are treated as remote.
+	JournalRemote bool
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -267,6 +276,8 @@ type TxPool struct {
 	pendingNonces *noncer        // Pending state tracking virtual nonces
 	currentMaxGas uint64         // Current gas limit for transaction caps
 
+	l1CostFn func(dataGas types.RollupGasData, isDepositTx bool) *big.Int // Current L1 fee cost function
+
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
 	journal *journal    // Journal of local transaction to back up to disk
 
@@ -338,14 +349,18 @@ func NewTxPool(config Config, chainconfig *params.ChainConfig, chain blockChain)
 	pool.wg.Add(1)
 	go pool.scheduleReorgLoop()
 
-	// If local transactions and journaling is enabled, load from disk
-	if !config.NoLocals && config.Journal != "" {
+	// If journaling is enabled and has transactions to journal, load from disk
+	if (!config.NoLocals || config.JournalRemote) && config.Journal != "" {
 		pool.journal = newTxJournal(config.Journal)
 
-		if err := pool.journal.load(pool.AddLocals); err != nil {
+		add := pool.AddLocals
+		if config.JournalRemote {
+			add = pool.AddRemotesSync // Use sync version to match pool.AddLocals
+		}
+		if err := pool.journal.load(add); err != nil {
 			log.Warn("Failed to load transaction journal", "err", err)
 		}
-		if err := pool.journal.rotate(pool.local()); err != nil {
+		if err := pool.journal.rotate(pool.toJournal()); err != nil {
 			log.Warn("Failed to rotate transaction journal", "err", err)
 		}
 	}
@@ -441,7 +456,7 @@ func (pool *TxPool) loop() {
 		case <-journal.C:
 			if pool.journal != nil {
 				pool.mu.Lock()
-				if err := pool.journal.rotate(pool.local()); err != nil {
+				if err := pool.journal.rotate(pool.toJournal()); err != nil {
 					log.Warn("Failed to rotate local tx journal", "err", err)
 				}
 				pool.mu.Unlock()
@@ -678,7 +693,7 @@ func (pool *TxPool) MevBundles(blockNumber *big.Int, blockTimestamp uint64) ([]t
 	// rolled over values
 	var bundles []types.MevBundle
 	// (uuid, signingAddress) -> list of bundles
-	var uuidBundles = make(map[uuidBundleKey][]types.MevBundle)
+	uuidBundles := make(map[uuidBundleKey][]types.MevBundle)
 
 	for _, bundle := range pool.mevBundles {
 		// Prune outdated bundles
@@ -788,9 +803,32 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 	return txs
 }
 
+// toJournal retrieves all transactions that should be included in the journal,
+// grouped by origin account and sorted by nonce.
+// The returned transaction set is a copy and can be freely modified by calling code.
+func (pool *TxPool) toJournal() map[common.Address]types.Transactions {
+	if !pool.config.JournalRemote {
+		return pool.local()
+	}
+	txs := make(map[common.Address]types.Transactions)
+	for addr, pending := range pool.pending {
+		txs[addr] = append(txs[addr], pending.Flatten()...)
+	}
+	for addr, queued := range pool.queue {
+		txs[addr] = append(txs[addr], queued.Flatten()...)
+	}
+	return txs
+}
+
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	// No unauthenticated deposits allowed in the transaction pool.
+	// This is for spam protection, not consensus,
+	// as the external engine-API user authenticates deposits.
+	if tx.Type() == types.DepositTxType {
+		return core.ErrTxTypeNotSupported
+	}
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if !pool.eip2718 && tx.Type() != types.LegacyTxType {
 		return core.ErrTxTypeNotSupported
@@ -842,18 +880,26 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
+	cost := tx.Cost()
+	if l1Cost := pool.l1CostFn(tx.RollupDataGas(), tx.IsDepositTx()); l1Cost != nil { // add rollup cost
+		cost = cost.Add(cost, l1Cost)
+	}
 	balance := pool.currentState.GetBalance(from)
-	if balance.Cmp(tx.Cost()) < 0 {
+	if balance.Cmp(cost) < 0 {
 		return core.ErrInsufficientFunds
 	}
 
 	// Verify that replacing transactions will not result in overdraft
 	list := pool.pending[from]
 	if list != nil { // Sender already has pending txs
-		sum := new(big.Int).Add(tx.Cost(), list.totalcost)
+		sum := new(big.Int).Add(cost, list.totalcost)
 		if repl := list.txs.Get(tx.Nonce()); repl != nil {
 			// Deduct the cost of a transaction replaced by this
-			sum.Sub(sum, repl.Cost())
+			replL1Cost := repl.Cost()
+			if l1Cost := pool.l1CostFn(tx.RollupDataGas(), tx.IsDepositTx()); l1Cost != nil { // add rollup cost
+				replL1Cost = replL1Cost.Add(cost, l1Cost)
+			}
+			sum.Sub(sum, replL1Cost)
 		}
 		if balance.Cmp(sum) < 0 {
 			log.Trace("Replacing transactions would overdraft", "sender", from, "balance", pool.currentState.GetBalance(from), "required", sum)
@@ -1062,7 +1108,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 // deemed to have been sent from a local account.
 func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 	// Only journal if it's enabled and the transaction is local
-	if pool.journal == nil || !pool.locals.contains(from) {
+	if pool.journal == nil || (!pool.config.JournalRemote && !pool.locals.contains(from)) {
 		return
 	}
 	if err := pool.journal.insert(tx); err != nil {
@@ -1199,7 +1245,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync, private bool) 
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
 	pool.mu.Unlock()
 
-	var nilSlot = 0
+	nilSlot := 0
 	for _, err := range newErrs {
 		for errs[nilSlot] != nil {
 			nilSlot++
@@ -1562,6 +1608,16 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 						return
 					}
 				}
+				// Do not insert deposit txs back into the pool
+				// (validateTx would still catch it if not filtered, but no need to re-inject in the first place).
+				j := 0
+				for _, tx := range discarded {
+					if tx.Type() != types.DepositTxType {
+						discarded[j] = tx
+						j++
+					}
+				}
+				discarded = discarded[:j]
 				reinject = types.TxDifference(discarded, included)
 			}
 		}
@@ -1613,8 +1669,16 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
+		balance := pool.currentState.GetBalance(addr)
+		if !list.Empty() {
+			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
+			el := list.txs.FirstElement()
+			if l1Cost := pool.l1CostFn(el.RollupDataGas(), el.IsDepositTx()); l1Cost != nil {
+				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
+			}
+		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, _ := list.Filter(balance, pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1811,8 +1875,16 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.privateTxs.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
+		balance := pool.currentState.GetBalance(addr)
+		if !list.Empty() {
+			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
+			el := list.txs.FirstElement()
+			if l1Cost := pool.l1CostFn(el.RollupDataGas(), el.IsDepositTx()); l1Cost != nil {
+				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
+			}
+		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, invalids := list.Filter(balance, pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)

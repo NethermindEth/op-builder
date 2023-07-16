@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
@@ -63,6 +64,8 @@ type SimulatedBackend struct {
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
 
+	consensus consensus.Engine
+
 	mu              sync.Mutex
 	pendingBlock    *types.Block   // Currently pending block that will be imported on request
 	pendingState    *state.StateDB // Currently pending state that will be the active on request
@@ -74,21 +77,11 @@ type SimulatedBackend struct {
 	config *params.ChainConfig
 }
 
-// NewSimulatedBackendWithDatabase creates a new binding backend based on the given database
-// and uses a simulated blockchain for testing purposes.
-// A simulated backend always uses chainID 1337.
-func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	genesis := core.Genesis{
-		Config:   params.AllEthashProtocolChanges,
-		GasLimit: gasLimit,
-		Alloc:    alloc,
-	}
-	blockchain, _ := core.NewBlockChain(database, nil, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
-
+func NewSimulatedBackendChain(database ethdb.Database, blockchain *core.BlockChain) *SimulatedBackend {
 	backend := &SimulatedBackend{
 		database:   database,
 		blockchain: blockchain,
-		config:     genesis.Config,
+		config:     blockchain.Config(),
 	}
 
 	filterBackend := &filterBackend{database, blockchain, backend}
@@ -102,21 +95,97 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 	return backend
 }
 
+// NewSimulatedBackendWithDatabase creates a new binding backend based on the given database
+// and uses a simulated blockchain for testing purposes.
+// A simulated backend always uses chainID 1337.
+func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
+	return NewSimulatedBackendWithOpts(WithDatabase(database), WithAlloc(alloc), WithGasLimit(gasLimit))
+}
+
 // NewSimulatedBackend creates a new binding backend using a simulated blockchain
 // for testing purposes.
 // A simulated backend always uses chainID 1337.
 func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	return NewSimulatedBackendWithDatabase(rawdb.NewMemoryDatabase(), alloc, gasLimit)
+	return NewSimulatedBackendWithOpts(WithGasLimit(gasLimit), WithAlloc(alloc))
 }
 
-func NewSimulatedBackendChain(database ethdb.Database, blockchain *core.BlockChain) *SimulatedBackend {
-	backend := &SimulatedBackend{
-		database:   database,
-		blockchain: blockchain,
-		config:     blockchain.Config(),
+type simulatedBackendConfig struct {
+	genesis     core.Genesis
+	cacheConfig *core.CacheConfig
+	database    ethdb.Database
+	vmConfig    vm.Config
+	consensus   consensus.Engine
+}
+
+type SimulatedBackendOpt func(s *simulatedBackendConfig)
+
+func WithDatabase(database ethdb.Database) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.database = database
+	}
+}
+
+func WithGasLimit(gasLimit uint64) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis.GasLimit = gasLimit
+	}
+}
+
+func WithAlloc(alloc core.GenesisAlloc) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis.Alloc = alloc
+	}
+}
+
+func WithCacheConfig(cacheConfig *core.CacheConfig) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.cacheConfig = cacheConfig
+	}
+}
+
+func WithGenesis(genesis core.Genesis) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis = genesis
+	}
+}
+
+func WithVMConfig(vmConfig vm.Config) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.vmConfig = vmConfig
+	}
+}
+
+func WithConsensus(consensus consensus.Engine) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.consensus = consensus
+	}
+}
+
+// NewSimulatedBackendWithOpts creates a new binding backend based on the given database
+// and uses a simulated blockchain for testing purposes. It exposes additional configuration
+// options that are useful to
+func NewSimulatedBackendWithOpts(opts ...SimulatedBackendOpt) *SimulatedBackend {
+	config := &simulatedBackendConfig{
+		genesis:   core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 100000000, Alloc: make(core.GenesisAlloc)},
+		database:  rawdb.NewMemoryDatabase(),
+		consensus: ethash.NewFaker(),
 	}
 
-	filterBackend := &filterBackend{database, blockchain, backend}
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	config.genesis.MustCommit(config.database)
+	blockchain, _ := core.NewBlockChain(config.database, config.cacheConfig, &config.genesis, nil, config.consensus, config.vmConfig, nil, nil)
+
+	backend := &SimulatedBackend{
+		database:   config.database,
+		blockchain: blockchain,
+		config:     config.genesis.Config,
+		consensus:  config.consensus,
+	}
+
+	filterBackend := &filterBackend{config.database, blockchain, backend}
 	backend.filterSystem = filters.NewFilterSystem(filterBackend, filters.Config{})
 	backend.events = filters.NewEventSystem(backend.filterSystem, false)
 
@@ -142,6 +211,8 @@ func (b *SimulatedBackend) Commit() common.Hash {
 	if _, err := b.blockchain.InsertChain([]*types.Block{b.pendingBlock}); err != nil {
 		panic(err) // This cannot happen unless the simulator is wrong, fail in that case
 	}
+	// Don't wait for the async tx indexing
+	rawdb.WriteTxLookupEntriesByBlock(b.database, b.pendingBlock)
 	blockHash := b.pendingBlock.Hash()
 
 	// Using the last inserted block here makes it possible to build on a side
@@ -163,7 +234,7 @@ func (b *SimulatedBackend) Rollback() {
 }
 
 func (b *SimulatedBackend) rollback(parent *types.Block) {
-	blocks, _ := core.GenerateChain(b.config, parent, ethash.NewFaker(), b.database, 1, func(int, *core.BlockGen) {})
+	blocks, _ := core.GenerateChain(b.config, parent, b.consensus, b.database, 1, func(int, *core.BlockGen) {})
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), b.blockchain.StateCache(), nil)
@@ -684,7 +755,7 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	txContext := core.NewEVMTxContext(msg)
-	evmContext := core.NewEVMBlockContext(header, b.blockchain, nil)
+	evmContext := core.NewEVMBlockContext(header, b.blockchain, nil, b.config, stateDB)
 	vmEnv := vm.NewEVM(evmContext, txContext, stateDB, b.config, vm.Config{NoBaseFee: true})
 	gasPool := new(core.GasPool).AddGas(math.MaxUint64)
 
@@ -712,7 +783,7 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 		return fmt.Errorf("invalid transaction nonce: got %d, want %d", tx.Nonce(), nonce)
 	}
 	// Include tx in chain
-	blocks, receipts := core.GenerateChain(b.config, block, ethash.NewFaker(), b.database, 1, func(number int, block *core.BlockGen) {
+	blocks, receipts := core.GenerateChain(b.config, block, b.consensus, b.database, 1, func(number int, block *core.BlockGen) {
 		for _, tx := range b.pendingBlock.Transactions() {
 			block.AddTxWithChain(b.blockchain, tx)
 		}
@@ -836,7 +907,7 @@ func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 		return fmt.Errorf("could not find parent")
 	}
 
-	blocks, _ := core.GenerateChain(b.config, block, ethash.NewFaker(), b.database, 1, func(number int, block *core.BlockGen) {
+	blocks, _ := core.GenerateChain(b.config, block, b.consensus, b.database, 1, func(number int, block *core.BlockGen) {
 		block.OffsetTime(int64(adjustment.Seconds()))
 	})
 	stateDB, _ := b.blockchain.State()

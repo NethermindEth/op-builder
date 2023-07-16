@@ -182,6 +182,14 @@ func NewLondonSigner(chainId *big.Int) Signer {
 }
 
 func (s londonSigner) Sender(tx *Transaction) (common.Address, error) {
+	if tx.Type() == DepositTxType {
+		switch tx.inner.(type) {
+		case *DepositTx:
+			return tx.inner.(*DepositTx).From, nil
+		case *depositTxWithNonce:
+			return tx.inner.(*depositTxWithNonce).From, nil
+		}
+	}
 	if tx.Type() != DynamicFeeTxType {
 		return s.eip2930Signer.Sender(tx)
 	}
@@ -201,6 +209,9 @@ func (s londonSigner) Equal(s2 Signer) bool {
 }
 
 func (s londonSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+	if tx.Type() == DepositTxType {
+		return nil, nil, nil, fmt.Errorf("deposits do not have a signature")
+	}
 	txdata, ok := tx.inner.(*DynamicFeeTx)
 	if !ok {
 		return s.eip2930Signer.SignatureValues(tx, sig)
@@ -218,6 +229,9 @@ func (s londonSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s londonSigner) Hash(tx *Transaction) common.Hash {
+	if tx.Type() == DepositTxType {
+		panic("deposits cannot be signed and do not have a signing hash")
+	}
 	if tx.Type() != DynamicFeeTxType {
 		return s.eip2930Signer.Hash(tx)
 	}
@@ -324,7 +338,7 @@ func (s eip2930Signer) Hash(tx *Transaction) common.Hash {
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
-		//panic("Unsupported transaction type: %d", tx.typ)
+		// panic("Unsupported transaction type: %d", tx.typ)
 		return common.Hash{}
 	}
 }
