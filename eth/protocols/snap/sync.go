@@ -733,7 +733,7 @@ func (s *Syncer) loadSyncStatus() {
 			for _, task := range s.tasks {
 				task.genBatch = ethdb.HookedBatch{
 					Batch: s.db.NewBatch(),
-					OnPut: func(key []byte, value []byte) {
+					OnPut: func(key, value []byte) {
 						s.accountBytes += common.StorageSize(len(key) + len(value))
 					},
 				}
@@ -744,7 +744,7 @@ func (s *Syncer) loadSyncStatus() {
 					for _, subtask := range subtasks {
 						subtask.genBatch = ethdb.HookedBatch{
 							Batch: s.db.NewBatch(),
-							OnPut: func(key []byte, value []byte) {
+							OnPut: func(key, value []byte) {
 								s.storageBytes += common.StorageSize(len(key) + len(value))
 							},
 						}
@@ -798,7 +798,7 @@ func (s *Syncer) loadSyncStatus() {
 		}
 		batch := ethdb.HookedBatch{
 			Batch: s.db.NewBatch(),
-			OnPut: func(key []byte, value []byte) {
+			OnPut: func(key, value []byte) {
 				s.accountBytes += common.StorageSize(len(key) + len(value))
 			},
 		}
@@ -1878,9 +1878,7 @@ func (s *Syncer) processAccountResponse(res *accountResponse) {
 func (s *Syncer) processBytecodeResponse(res *bytecodeResponse) {
 	batch := s.db.NewBatch()
 
-	var (
-		codes uint64
-	)
+	var codes uint64
 	for i, hash := range res.hashes {
 		code := res.codes[i]
 
@@ -1928,7 +1926,7 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 	}
 	batch := ethdb.HookedBatch{
 		Batch: s.db.NewBatch(),
-		OnPut: func(key []byte, value []byte) {
+		OnPut: func(key, value []byte) {
 			s.storageBytes += common.StorageSize(len(key) + len(value))
 		},
 	}
@@ -1997,7 +1995,7 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 					// Our first task is the one that was just filled by this response.
 					batch := ethdb.HookedBatch{
 						Batch: s.db.NewBatch(),
-						OnPut: func(key []byte, value []byte) {
+						OnPut: func(key, value []byte) {
 							s.storageBytes += common.StorageSize(len(key) + len(value))
 						},
 					}
@@ -2013,7 +2011,7 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 					for r.Next() {
 						batch := ethdb.HookedBatch{
 							Batch: s.db.NewBatch(),
-							OnPut: func(key []byte, value []byte) {
+							OnPut: func(key, value []byte) {
 								s.storageBytes += common.StorageSize(len(key) + len(value))
 							},
 						}
@@ -2269,7 +2267,7 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 
 	batch := ethdb.HookedBatch{
 		Batch: s.db.NewBatch(),
-		OnPut: func(key []byte, value []byte) {
+		OnPut: func(key, value []byte) {
 			s.accountBytes += common.StorageSize(len(key) + len(value))
 		},
 	}
@@ -2326,7 +2324,7 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 
 // OnAccounts is a callback method to invoke when a range of accounts are
 // received from a remote peer.
-func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, accounts [][]byte, proof [][]byte) error {
+func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, accounts, proof [][]byte) error {
 	size := common.StorageSize(len(hashes) * common.HashLength)
 	for _, account := range accounts {
 		size += common.StorageSize(len(account))

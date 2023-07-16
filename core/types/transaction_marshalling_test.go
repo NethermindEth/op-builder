@@ -68,7 +68,7 @@ func TestTransactionUnmarshalJSON(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var parsedTx = &Transaction{}
+			parsedTx := &Transaction{}
 			err := json.Unmarshal([]byte(test.json), &parsedTx)
 			if test.expectedError == "" {
 				require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestTransactionUnmarshalJSON(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var parsedTx = &Transaction{}
+			parsedTx := &Transaction{}
 			err := json.Unmarshal([]byte(test.json), &parsedTx)
 			require.NoError(t, err)
 

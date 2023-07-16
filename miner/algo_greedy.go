@@ -65,7 +65,7 @@ func (b *greedyBuilder) mergeOrdersIntoEnvDiff(
 				log.Trace("Included tx", "EGP", effGapPrice.String(), "gasUsed", receipt.GasUsed)
 			}
 		} else if bundle := order.Bundle(); bundle != nil {
-			//log.Debug("buildBlock considering bundle", "egp", bundle.MevGasPrice.String(), "hash", bundle.OriginalBundle.Hash)
+			// log.Debug("buildBlock considering bundle", "egp", bundle.MevGasPrice.String(), "hash", bundle.OriginalBundle.Hash)
 			err := envDiff.commitBundle(bundle, b.chainData, b.interrupt, defaultAlgorithmConfig)
 			orders.Pop()
 			if err != nil {

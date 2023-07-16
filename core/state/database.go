@@ -42,7 +42,7 @@ type Database interface {
 	OpenTrie(root common.Hash) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
-	OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (Trie, error)
+	OpenStorageTrie(stateRoot, addrHash, root common.Hash) (Trie, error)
 
 	// CopyTrie returns an independent copy of the given trie.
 	CopyTrie(Trie) Trie
@@ -171,7 +171,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (db *cachingDB) OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenStorageTrie(stateRoot, addrHash, root common.Hash) (Trie, error) {
 	tr, err := trie.NewStateTrie(trie.StorageTrieID(stateRoot, addrHash, root), db.triedb)
 	if err != nil {
 		return nil, err

@@ -46,7 +46,7 @@ func (l *JSONLogger) CaptureStart(env *vm.EVM, from, to common.Address, create b
 	l.env = env
 }
 
-func (l *JSONLogger) CaptureFault(pc uint64, op vm.OpCode, gas uint64, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+func (l *JSONLogger) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
 	// TODO: Add rData to this interface as well
 	l.CaptureState(pc, op, gas, cost, scope, nil, depth, err)
 }
@@ -92,7 +92,7 @@ func (l *JSONLogger) CaptureEnd(output []byte, gasUsed uint64, err error) {
 	l.encoder.Encode(endLog{common.Bytes2Hex(output), math.HexOrDecimal64(gasUsed), errMsg})
 }
 
-func (l *JSONLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+func (l *JSONLogger) CaptureEnter(typ vm.OpCode, from, to common.Address, input []byte, gas uint64, value *big.Int) {
 }
 
 func (l *JSONLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}

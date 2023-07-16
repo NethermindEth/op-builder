@@ -8,12 +8,14 @@ import (
 	"github.com/go-stack/stack"
 )
 
-const timeKey = "t"
-const lvlKey = "lvl"
-const msgKey = "msg"
-const ctxKey = "ctx"
-const errorKey = "LOG15_ERROR"
-const skipLevel = 2
+const (
+	timeKey   = "t"
+	lvlKey    = "lvl"
+	msgKey    = "msg"
+	ctxKey    = "ctx"
+	errorKey  = "LOG15_ERROR"
+	skipLevel = 2
+)
 
 type Lvl int
 
@@ -198,7 +200,7 @@ func (l *logger) New(ctx ...interface{}) Logger {
 	return child
 }
 
-func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
+func newContext(prefix, suffix []interface{}) []interface{} {
 	normalizedSuffix := normalize(suffix)
 	newCtx := make([]interface{}, len(prefix)+len(normalizedSuffix))
 	n := copy(newCtx, prefix)

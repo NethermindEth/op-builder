@@ -68,7 +68,7 @@ type driver interface {
 	// or deny the transaction.
 	SignTx(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error)
 
-	SignTypedMessage(path accounts.DerivationPath, messageHash []byte, domainHash []byte) ([]byte, error)
+	SignTypedMessage(path accounts.DerivationPath, messageHash, domainHash []byte) ([]byte, error)
 }
 
 // wallet represents the common functionality shared by all USB hardware

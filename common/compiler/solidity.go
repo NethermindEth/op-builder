@@ -56,7 +56,7 @@ type solcOutputV8 struct {
 //
 // Returns an error if the JSON is malformed or missing data, or if the JSON
 // embedded within the JSON is malformed.
-func ParseCombinedJSON(combinedJSON []byte, source string, languageVersion string, compilerVersion string, compilerOptions string) (map[string]*Contract, error) {
+func ParseCombinedJSON(combinedJSON []byte, source, languageVersion, compilerVersion, compilerOptions string) (map[string]*Contract, error) {
 	var output solcOutput
 	if err := json.Unmarshal(combinedJSON, &output); err != nil {
 		// Try to parse the output with the new solidity v.0.8.0 rules
@@ -101,7 +101,7 @@ func ParseCombinedJSON(combinedJSON []byte, source string, languageVersion strin
 
 // parseCombinedJSONV8 parses the direct output of solc --combined-output
 // and parses it using the rules from solidity v.0.8.0 and later.
-func parseCombinedJSONV8(combinedJSON []byte, source string, languageVersion string, compilerVersion string, compilerOptions string) (map[string]*Contract, error) {
+func parseCombinedJSONV8(combinedJSON []byte, source, languageVersion, compilerVersion, compilerOptions string) (map[string]*Contract, error) {
 	var output solcOutputV8
 	if err := json.Unmarshal(combinedJSON, &output); err != nil {
 		return nil, err

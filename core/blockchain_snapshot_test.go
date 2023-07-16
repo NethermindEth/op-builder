@@ -257,7 +257,6 @@ func (snaptest *crashSnapshotTest) test(t *testing.T) {
 		Directory:         snaptest.datadir,
 		AncientsDirectory: snaptest.datadir,
 	})
-
 	if err != nil {
 		t.Fatalf("Failed to reopen persistent database: %v", err)
 	}
@@ -303,7 +302,7 @@ func (snaptest *gappedSnapshotTest) test(t *testing.T) {
 	gappedBlocks, _ := GenerateChain(params.TestChainConfig, blocks[len(blocks)-1], snaptest.engine, snaptest.genDb, snaptest.gapped, func(i int, b *BlockGen) {})
 
 	// Insert a few more blocks without enabling snapshot
-	var cacheConfig = &CacheConfig{
+	cacheConfig := &CacheConfig{
 		TrieCleanLimit: 256,
 		TrieDirtyLimit: 256,
 		TrieTimeLimit:  5 * time.Minute,

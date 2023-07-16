@@ -572,7 +572,7 @@ func (net *Network) GetRandomNode(excludeIDs ...enode.ID) *Node {
 	return net.getRandomNode(net.getNodeIDs(nil), excludeIDs) // no need to exclude twice
 }
 
-func (net *Network) getRandomNode(ids []enode.ID, excludeIDs []enode.ID) *Node {
+func (net *Network) getRandomNode(ids, excludeIDs []enode.ID) *Node {
 	filtered := filterIDs(ids, excludeIDs)
 
 	l := len(filtered)
@@ -582,7 +582,7 @@ func (net *Network) getRandomNode(ids []enode.ID, excludeIDs []enode.ID) *Node {
 	return net.getNode(filtered[rand.Intn(l)])
 }
 
-func filterIDs(ids []enode.ID, excludeIDs []enode.ID) []enode.ID {
+func filterIDs(ids, excludeIDs []enode.ID) []enode.ID {
 	exclude := make(map[enode.ID]bool)
 	for _, id := range excludeIDs {
 		exclude[id] = true
@@ -702,7 +702,7 @@ func (net *Network) Reset() {
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	//re-initialize the maps
+	// re-initialize the maps
 	net.connMap = make(map[string]int)
 	net.nodeMap = make(map[enode.ID]int)
 	net.propertyMap = make(map[string][]int)
@@ -880,11 +880,11 @@ func (net *Network) Snapshot() (*Snapshot, error) {
 	return net.snapshot(nil, nil)
 }
 
-func (net *Network) SnapshotWithServices(addServices []string, removeServices []string) (*Snapshot, error) {
+func (net *Network) SnapshotWithServices(addServices, removeServices []string) (*Snapshot, error) {
 	return net.snapshot(addServices, removeServices)
 }
 
-func (net *Network) snapshot(addServices []string, removeServices []string) (*Snapshot, error) {
+func (net *Network) snapshot(addServices, removeServices []string) (*Snapshot, error) {
 	net.lock.Lock()
 	defer net.lock.Unlock()
 	snap := &Snapshot{
@@ -1019,8 +1019,8 @@ func (net *Network) Load(snap *Snapshot) error {
 	// Start connecting.
 	for _, conn := range snap.Conns {
 		if !net.GetNode(conn.One).Up() || !net.GetNode(conn.Other).Up() {
-			//in this case, at least one of the nodes of a connection is not up,
-			//so it would result in the snapshot `Load` to fail
+			// in this case, at least one of the nodes of a connection is not up,
+			// so it would result in the snapshot `Load` to fail
 			continue
 		}
 		if err := net.Connect(conn.One, conn.Other); err != nil {

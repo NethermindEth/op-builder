@@ -31,7 +31,7 @@ type KeyValueReader interface {
 // KeyValueWriter wraps the Put method of a backing data store.
 type KeyValueWriter interface {
 	// Put inserts the given value into the key-value data store.
-	Put(key []byte, value []byte) error
+	Put(key, value []byte) error
 
 	// Delete removes the key from the key-value data store.
 	Delete(key []byte) error
@@ -52,7 +52,7 @@ type Compacter interface {
 	// A nil start is treated as a key before all keys in the data store; a nil limit
 	// is treated as a key after all keys in the data store. If both is nil then it
 	// will compact entire data store.
-	Compact(start []byte, limit []byte) error
+	Compact(start, limit []byte) error
 }
 
 // KeyValueStore contains all the methods required to allow handling different

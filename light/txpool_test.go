@@ -40,7 +40,7 @@ func (r *testTxRelay) Send(txs types.Transactions) {
 	r.send <- len(txs)
 }
 
-func (r *testTxRelay) NewHead(head common.Hash, mined []common.Hash, rollback []common.Hash) {
+func (r *testTxRelay) NewHead(head common.Hash, mined, rollback []common.Hash) {
 	m := len(mined)
 	if m != 0 {
 		r.mined <- m
@@ -51,8 +51,10 @@ func (r *testTxRelay) Discard(hashes []common.Hash) {
 	r.discard <- len(hashes)
 }
 
-const poolTestTxs = 1000
-const poolTestBlocks = 100
+const (
+	poolTestTxs    = 1000
+	poolTestBlocks = 100
+)
 
 // test tx 0..n-1
 var testTx [poolTestTxs]*types.Transaction

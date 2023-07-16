@@ -111,7 +111,7 @@ func RenderString(templateContent, outputFile string, outputPerm os.FileMode, x 
 }
 
 func render(tpl *template.Template, outputFile string, outputPerm os.FileMode, x interface{}) {
-	if err := os.MkdirAll(filepath.Dir(outputFile), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o755); err != nil {
 		log.Fatal(err)
 	}
 	out, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, outputPerm)

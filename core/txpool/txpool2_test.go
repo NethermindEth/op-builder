@@ -33,7 +33,7 @@ func pricedValuedTransaction(nonce uint64, value int64, gaslimit uint64, gaspric
 	return tx
 }
 
-func count(t *testing.T, pool *TxPool) (pending int, queued int) {
+func count(t *testing.T, pool *TxPool) (pending, queued int) {
 	t.Helper()
 	pending, queued = pool.stats()
 	if err := validatePoolInternals(pool); err != nil {

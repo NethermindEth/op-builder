@@ -323,7 +323,7 @@ func (s *skeleton) Terminate() error {
 //
 // This method does not block, rather it just waits until the syncer receives the
 // fed header. What the syncer does with it is the syncer's problem.
-func (s *skeleton) Sync(head *types.Header, final *types.Header, force bool) error {
+func (s *skeleton) Sync(head, final *types.Header, force bool) error {
 	log.Trace("New skeleton head announced", "number", head.Number, "hash", head.Hash(), "force", force)
 	errc := make(chan error)
 
@@ -592,7 +592,7 @@ func (s *skeleton) saveSyncStatus(db ethdb.KeyValueWriter) {
 // accepts and integrates it into the skeleton or requests a reorg. Upon reorg,
 // the syncer will tear itself down and restart with a fresh head. It is simpler
 // to reconstruct the sync state than to mutate it and hope for the best.
-func (s *skeleton) processNewHead(head *types.Header, final *types.Header, force bool) bool {
+func (s *skeleton) processNewHead(head, final *types.Header, force bool) bool {
 	// If a new finalized block was announced, update the sync process independent
 	// of what happens with the sync head below
 	if final != nil {
@@ -888,7 +888,7 @@ func (s *skeleton) revertRequest(req *headerRequest) {
 	s.scratchOwners[(s.scratchHead-req.head)/requestHeaders] = ""
 }
 
-func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged bool) {
+func (s *skeleton) processResponse(res *headerResponse) (linked, merged bool) {
 	res.peer.log.Trace("Processing header response", "head", res.headers[0].Number, "hash", res.headers[0].Hash(), "count", len(res.headers))
 
 	// Whether the response is valid, we can mark the peer as idle and notify
@@ -1173,7 +1173,7 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 // There might be new heads appended, but those are atomic from the perspective
 // of this method. Any head reorg will first tear down the backfiller and only
 // then make the modification.
-func (s *skeleton) Bounds() (head *types.Header, tail *types.Header, final *types.Header, err error) {
+func (s *skeleton) Bounds() (head, tail, final *types.Header, err error) {
 	// Read the current sync progress from disk and figure out the current head.
 	// Although there's a lot of error handling here, these are mostly as sanity
 	// checks to avoid crashing if a programming error happens. These should not

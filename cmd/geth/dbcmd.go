@@ -230,7 +230,7 @@ func removeDB(ctx *cli.Context) error {
 
 // confirmAndRemoveDB prompts the user for a last confirmation and removes the
 // folder if accepted.
-func confirmAndRemoveDB(database string, kind string) {
+func confirmAndRemoveDB(database, kind string) {
 	confirm, err := prompt.Stdin.PromptConfirm(fmt.Sprintf("Remove %s (%s)?", kind, database))
 	switch {
 	case err != nil:

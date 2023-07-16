@@ -126,7 +126,7 @@ func (t *table) AncientDatadir() (string, error) {
 
 // Put inserts the given value into the database at a prefixed version of the
 // provided key.
-func (t *table) Put(key []byte, value []byte) error {
+func (t *table) Put(key, value []byte) error {
 	return t.db.Put(append([]byte(t.prefix), key...), value)
 }
 
@@ -138,7 +138,7 @@ func (t *table) Delete(key []byte) error {
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
-func (t *table) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (t *table) NewIterator(prefix, start []byte) ethdb.Iterator {
 	innerPrefix := append([]byte(t.prefix), prefix...)
 	iter := t.db.NewIterator(innerPrefix, start)
 	return &tableIterator{
@@ -159,7 +159,7 @@ func (t *table) Stat(property string) (string, error) {
 // A nil start is treated as a key before all keys in the data store; a nil limit
 // is treated as a key after all keys in the data store. If both is nil then it
 // will compact entire data store.
-func (t *table) Compact(start []byte, limit []byte) error {
+func (t *table) Compact(start, limit []byte) error {
 	// If no start was specified, use the table prefix as the first value
 	if start == nil {
 		start = []byte(t.prefix)
@@ -247,7 +247,7 @@ type tableReplayer struct {
 }
 
 // Put implements the interface KeyValueWriter.
-func (r *tableReplayer) Put(key []byte, value []byte) error {
+func (r *tableReplayer) Put(key, value []byte) error {
 	trimmed := key[len(r.prefix):]
 	return r.w.Put(trimmed, value)
 }

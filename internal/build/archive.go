@@ -158,7 +158,7 @@ func (a *TarballArchive) Directory(name string) error {
 	a.dir = name + "/"
 	return a.tarw.WriteHeader(&tar.Header{
 		Name:     a.dir,
-		Mode:     0755,
+		Mode:     0o755,
 		Typeflag: tar.TypeDir,
 		ModTime:  time.Now(),
 	})
@@ -187,7 +187,7 @@ func (a *TarballArchive) Close() error {
 }
 
 // ExtractArchive unpacks a .zip or .tar.gz archive to the destination directory.
-func ExtractArchive(archive string, dest string) error {
+func ExtractArchive(archive, dest string) error {
 	ar, err := os.Open(archive)
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func extractFile(arpath string, armode os.FileMode, data io.Reader, dest string)
 	}
 
 	// Ensure the destination directory exists.
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
 

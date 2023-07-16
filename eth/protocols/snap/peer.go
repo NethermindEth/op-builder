@@ -73,7 +73,7 @@ func (p *Peer) Log() log.Logger {
 
 // RequestAccountRange fetches a batch of accounts rooted in a specific account
 // trie, starting with the origin.
-func (p *Peer) RequestAccountRange(id uint64, root common.Hash, origin, limit common.Hash, bytes uint64) error {
+func (p *Peer) RequestAccountRange(id uint64, root, origin, limit common.Hash, bytes uint64) error {
 	p.logger.Trace("Fetching range of accounts", "reqid", id, "root", root, "origin", origin, "limit", limit, "bytes", common.StorageSize(bytes))
 
 	requestTracker.Track(p.id, p.version, GetAccountRangeMsg, AccountRangeMsg, id)

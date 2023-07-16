@@ -184,7 +184,7 @@ var typedData = apitypes.TypedData{
 
 func TestSignData(t *testing.T) {
 	api, control := setup(t)
-	//Create two accounts
+	// Create two accounts
 	createAccount(control, api, t)
 	createAccount(control, api, t)
 	control.approveCh <- "1"
@@ -537,7 +537,7 @@ func TestGnosisCustomData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var td = tx.ToTypedData()
+	td := tx.ToTypedData()
 	_, sighash, err := sign(td)
 	if err != nil {
 		t.Fatal(err)
@@ -667,7 +667,7 @@ func TestGnosisCustomDataWithChainId(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var td = tx.ToTypedData()
+	td := tx.ToTypedData()
 	_, sighash, err := sign(td)
 	if err != nil {
 		t.Fatal(err)

@@ -63,7 +63,7 @@ type Contract struct {
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
-func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
+func NewContract(caller, object ContractRef, value *big.Int, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
 	if parent, ok := caller.(*Contract); ok {

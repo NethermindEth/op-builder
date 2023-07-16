@@ -265,7 +265,7 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
 // See YP section 4.3.4. "Block Header Validity"
-func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header, uncle bool, seal bool, unixNow int64) error {
+func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header, uncle, seal bool, unixNow int64) error {
 	// Ensure that the header's extra-data section is of a reasonable size
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
@@ -518,8 +518,11 @@ func calcDifficultyFrontier(time uint64, parent *types.Header) *big.Int {
 
 // Exported for fuzzing
 var FrontierDifficultyCalculator = calcDifficultyFrontier
-var HomesteadDifficultyCalculator = calcDifficultyHomestead
-var DynamicDifficultyCalculator = makeDifficultyCalculator
+
+var (
+	HomesteadDifficultyCalculator = calcDifficultyHomestead
+	DynamicDifficultyCalculator   = makeDifficultyCalculator
+)
 
 // verifySeal checks whether a block satisfies the PoW difficulty requirements,
 // either using the usual ethash cache for it, or alternatively using a full DAG

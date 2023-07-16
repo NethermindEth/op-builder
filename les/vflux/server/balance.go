@@ -131,7 +131,7 @@ func (b balance) negValue(now mclock.AbsTime) uint64 {
 // addValue adds the value of a given amount to the balance. The original value and
 // updated value will also be returned if the addition is successful.
 // Returns the error if the given value is too large and the value overflows.
-func (b *balance) addValue(now mclock.AbsTime, amount int64, pos bool, force bool) (uint64, uint64, int64, error) {
+func (b *balance) addValue(now mclock.AbsTime, amount int64, pos, force bool) (uint64, uint64, int64, error) {
 	var (
 		val    utils.ExpiredValue
 		offset utils.Fixed64
@@ -160,7 +160,7 @@ func (b *balance) addValue(now mclock.AbsTime, amount int64, pos bool, force boo
 
 // setValue sets the internal balance amount to the given values. Returns the
 // error if the given value is too large.
-func (b *balance) setValue(now mclock.AbsTime, pos uint64, neg uint64) error {
+func (b *balance) setValue(now mclock.AbsTime, pos, neg uint64) error {
 	if pos > maxBalance || neg > maxBalance {
 		return errBalanceOverflow
 	}

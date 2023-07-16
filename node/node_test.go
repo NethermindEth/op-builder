@@ -30,13 +30,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
-
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testNodeKey, _ = crypto.GenerateKey()
-)
+var testNodeKey, _ = crypto.GenerateKey()
 
 func testNodeConfig() *Config {
 	return &Config{

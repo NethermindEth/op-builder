@@ -160,7 +160,7 @@ func TestDiskMerge(t *testing.T) {
 	assertAccount(accDelCache, nil)
 
 	// assertStorage ensures that a storage slot matches the given blob.
-	assertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+	assertStorage := func(account, slot common.Hash, data []byte) {
 		t.Helper()
 		blob, err := base.Storage(account, slot)
 		if err != nil {
@@ -195,7 +195,7 @@ func TestDiskMerge(t *testing.T) {
 	assertDatabaseAccount(accDelCache, nil)
 
 	// assertDatabaseStorage ensures that a storage slot from the database matches the given blob.
-	assertDatabaseStorage := func(account common.Hash, slot common.Hash, data []byte) {
+	assertDatabaseStorage := func(account, slot common.Hash, data []byte) {
 		t.Helper()
 		if blob := rawdb.ReadStorageSnapshot(db, account, slot); !bytes.Equal(blob, data) {
 			t.Errorf("storage database access (%x:%x) mismatch: have %x, want %x", account, slot, blob, data)
@@ -267,7 +267,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// insertStorage injects a storage slot into the database if it's after
 		// the  generator marker, drops the op otherwise. This is needed to seed
 		// the  database with a valid starting snapshot.
-		insertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		insertStorage := func(account, slot common.Hash, data []byte) {
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) <= 0 {
 				rawdb.WriteStorageSnapshot(db, account, slot, data[:])
 			}
@@ -324,7 +324,7 @@ func TestDiskPartialMerge(t *testing.T) {
 
 		// assertStorage ensures that a storage slot matches the given blob if
 		// it's already covered by the disk snapshot, and errors out otherwise.
-		assertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		assertStorage := func(account, slot common.Hash, data []byte) {
 			t.Helper()
 			blob, err := base.Storage(account, slot)
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) > 0 && err != ErrNotCoveredYet {
@@ -405,7 +405,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// assertDatabaseStorage ensures that a storage slot inside the database
 		// matches the given blob if it's already covered by the disk snapshot,
 		// and does not exist otherwise.
-		assertDatabaseStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		assertDatabaseStorage := func(account, slot common.Hash, data []byte) {
 			t.Helper()
 			blob := rawdb.ReadStorageSnapshot(db, account, slot)
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) > 0 && blob != nil {
@@ -543,7 +543,7 @@ func TestDiskSeek(t *testing.T) {
 		pos    byte
 		expkey byte
 	}
-	var cases = []testcase{
+	cases := []testcase{
 		{0xff, 0x55}, // this should exit immediately without checking key
 		{0x01, 0x02},
 		{0xfe, 0xfe},

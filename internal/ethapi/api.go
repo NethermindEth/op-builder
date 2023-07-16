@@ -232,7 +232,7 @@ func (s *TxPoolAPI) Inspect() map[string]map[string]map[string]string {
 	pending, queue := s.b.TxPoolContent()
 
 	// Define a formatter to flatten a transaction into a string
-	var format = func(tx *types.Transaction) string {
+	format := func(tx *types.Transaction) string {
 		if to := tx.To(); to != nil {
 			return fmt.Sprintf("%s: %v wei + %v gas × %v wei", tx.To().Hex(), tx.Value(), tx.Gas(), tx.GasPrice())
 		}
@@ -342,7 +342,7 @@ func (s *PersonalAccountAPI) OpenWallet(url string, passphrase *string) error {
 
 // DeriveAccount requests a HD wallet to derive a new account, optionally pinning
 // it for later reuse.
-func (s *PersonalAccountAPI) DeriveAccount(url string, path string, pin *bool) (accounts.Account, error) {
+func (s *PersonalAccountAPI) DeriveAccount(url, path string, pin *bool) (accounts.Account, error) {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return accounts.Account{}, err
@@ -383,7 +383,7 @@ func fetchKeystore(am *accounts.Manager) (*keystore.KeyStore, error) {
 
 // ImportRawKey stores the given hex encoded ECDSA key into the key directory,
 // encrypting it with the passphrase.
-func (s *PersonalAccountAPI) ImportRawKey(privkey string, password string) (common.Address, error) {
+func (s *PersonalAccountAPI) ImportRawKey(privkey, password string) (common.Address, error) {
 	key, err := crypto.HexToECDSA(privkey)
 	if err != nil {
 		return common.Address{}, err
@@ -590,7 +590,7 @@ func (s *PersonalAccountAPI) InitializeWallet(ctx context.Context, url string) (
 }
 
 // Unpair deletes a pairing between wallet and geth.
-func (s *PersonalAccountAPI) Unpair(ctx context.Context, url string, pin string) error {
+func (s *PersonalAccountAPI) Unpair(ctx context.Context, url, pin string) error {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return err
@@ -1252,7 +1252,6 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	for lo+1 < hi {
 		mid := (hi + lo) / 2
 		failed, _, err := executable(mid)
-
 		// If the error is not nil(consensus error), it means the provided message
 		// call or transaction will never be accepted no matter how much gas it is
 		// assigned. Return the error directly, don't struggle any more.
@@ -1350,7 +1349,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 // RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalBlock(ctx context.Context, block *types.Block, inclTx bool, fullTx bool, backend Backend) (map[string]interface{}, error) {
+func RPCMarshalBlock(ctx context.Context, block *types.Block, inclTx, fullTx bool, backend Backend) (map[string]interface{}, error) {
 	fields := RPCMarshalHeader(block.Header())
 	fields["size"] = hexutil.Uint64(block.Size())
 
@@ -1395,7 +1394,7 @@ func (s *BlockChainAPI) rpcMarshalHeader(ctx context.Context, header *types.Head
 
 // rpcMarshalBlock uses the generalized output filler, then adds the total difficulty field, which requires
 // a `BlockchainAPI`.
-func (s *BlockChainAPI) rpcMarshalBlock(ctx context.Context, b *types.Block, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+func (s *BlockChainAPI) rpcMarshalBlock(ctx context.Context, b *types.Block, inclTx, fullTx bool) (map[string]interface{}, error) {
 	fields, err := RPCMarshalBlock(ctx, b, inclTx, fullTx, s.b)
 	if err != nil {
 		return nil, err
@@ -1436,7 +1435,7 @@ type RPCTransaction struct {
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
-func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig, receipt *types.Receipt) *RPCTransaction {
+func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64, baseFee *big.Int, config *params.ChainConfig, receipt *types.Receipt) *RPCTransaction {
 	signer := types.MakeSigner(config, new(big.Int).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
 	v, r, s := tx.RawSignatureValues()
@@ -1605,7 +1604,7 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 // AccessList creates an access list for the given transaction.
 // If the accesslist creation fails an error is returned.
 // If the transaction itself fails, an vmErr is returned.
-func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
+func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr, err error) {
 	// Retrieve the execution context
 	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if db == nil || err != nil {
@@ -2092,11 +2091,11 @@ func (s *TransactionAPI) Resend(ctx context.Context, sendArgs TransactionArgs, g
 	matchTx := sendArgs.toTransaction()
 
 	// Before replacing the old transaction, ensure the _new_ transaction fee is reasonable.
-	var price = matchTx.GasPrice()
+	price := matchTx.GasPrice()
 	if gasPrice != nil {
 		price = gasPrice.ToInt()
 	}
-	var gas = matchTx.Gas()
+	gas := matchTx.Gas()
 	if gasLimit != nil {
 		gas = uint64(*gasLimit)
 	}

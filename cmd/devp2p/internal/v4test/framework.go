@@ -36,7 +36,7 @@ type testenv struct {
 	remoteAddr *net.UDPAddr
 }
 
-func newTestEnv(remote string, listen1, listen2 string) *testenv {
+func newTestEnv(remote, listen1, listen2 string) *testenv {
 	l1, err := net.ListenPacket("udp", fmt.Sprintf("%v:0", listen1))
 	if err != nil {
 		panic(err)

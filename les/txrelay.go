@@ -145,7 +145,7 @@ func (ltrx *lesTxRelay) Send(txs types.Transactions) {
 	ltrx.send(txs, 3)
 }
 
-func (ltrx *lesTxRelay) NewHead(head common.Hash, mined []common.Hash, rollback []common.Hash) {
+func (ltrx *lesTxRelay) NewHead(head common.Hash, mined, rollback []common.Hash) {
 	ltrx.lock.Lock()
 	defer ltrx.lock.Unlock()
 

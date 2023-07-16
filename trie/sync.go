@@ -89,7 +89,7 @@ func NewSyncPath(path []byte) SyncPath {
 // It's used by state sync and commit to allow handling external references
 // between account and storage tries. And also it's used in the state healing
 // for extracting the raw states(leaf nodes) with corresponding paths.
-type LeafCallback func(keys [][]byte, path []byte, leaf []byte, parent common.Hash, parentPath []byte) error
+type LeafCallback func(keys [][]byte, path, leaf []byte, parent common.Hash, parentPath []byte) error
 
 // nodeRequest represents a scheduled or already in-flight trie node retrieval request.
 type nodeRequest struct {

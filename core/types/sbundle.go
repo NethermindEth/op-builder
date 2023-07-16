@@ -9,9 +9,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-var (
-	ErrIncorrectRefundConfig = errors.New("incorrect refund config")
-)
+var ErrIncorrectRefundConfig = errors.New("incorrect refund config")
 
 // SBundle is a bundle of transactions that must be executed atomically
 // unlike ordinary bundle it also supports refunds

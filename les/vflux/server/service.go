@@ -40,7 +40,7 @@ type (
 
 	// Service is a service registered at the Server and identified by a string id
 	Service interface {
-		Handle(id enode.ID, address string, name string, data []byte) []byte // never called concurrently
+		Handle(id enode.ID, address, name string, data []byte) []byte // never called concurrently
 	}
 
 	serviceEntry struct {

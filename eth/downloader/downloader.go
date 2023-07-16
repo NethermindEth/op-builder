@@ -88,7 +88,7 @@ type peerDropFn func(id string)
 
 // badBlockFn is a callback for the async beacon sync to notify the caller that
 // the origin header requested to sync to, produced a chain with a bad block.
-type badBlockFn func(invalid *types.Header, origin *types.Header)
+type badBlockFn func(invalid, origin *types.Header)
 
 // headerTask is a set of downloaded headers to queue along with their precomputed
 // hashes to avoid constant rehashing.
@@ -724,7 +724,7 @@ func (d *Downloader) Terminate() {
 
 // fetchHead retrieves the head header and prior pivot block (if available) from
 // a remote peer.
-func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *types.Header, err error) {
+func (d *Downloader) fetchHead(p *peerConnection) (head, pivot *types.Header, err error) {
 	p.log.Debug("Retrieving remote chain head")
 	mode := d.getMode()
 
@@ -1015,7 +1015,7 @@ func (d *Downloader) findAncestorBinarySearch(p *peerConnection, mode SyncMode, 
 // other peers are only accepted if they map cleanly to the skeleton. If no one
 // can fill in the skeleton - not even the origin peer - it's assumed invalid and
 // the origin is dropped.
-func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) error {
+func (d *Downloader) fetchHeaders(p *peerConnection, from, head uint64) error {
 	p.log.Debug("Directing header downloads", "origin", from)
 	defer p.log.Debug("Header download terminated")
 

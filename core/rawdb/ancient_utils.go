@@ -93,7 +93,7 @@ func inspectFreezers(db ethdb.Database) ([]freezerInfo, error) {
 // ancient indicates the path of root ancient directory where the chain freezer can
 // be opened. Start and end specify the range for dumping out indexes.
 // Note this function can only be used for debugging purposes.
-func InspectFreezerTable(ancient string, freezerName string, tableName string, start, end int64) error {
+func InspectFreezerTable(ancient, freezerName, tableName string, start, end int64) error {
 	var (
 		path   string
 		tables map[string]bool

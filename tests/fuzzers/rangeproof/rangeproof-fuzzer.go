@@ -106,7 +106,7 @@ func (f *fuzzer) fuzz() int {
 	}
 	sort.Sort(entries)
 
-	var ok = 0
+	ok := 0
 	for {
 		start := int(f.readInt() % uint64(len(entries)))
 		end := 1 + int(f.readInt()%uint64(len(entries)-1))
@@ -132,7 +132,7 @@ func (f *fuzzer) fuzz() int {
 		if len(keys) == 0 {
 			return 0
 		}
-		var first, last = keys[0], keys[len(keys)-1]
+		first, last := keys[0], keys[len(keys)-1]
 		testcase %= 6
 		switch testcase {
 		case 0:
@@ -168,7 +168,7 @@ func (f *fuzzer) fuzz() int {
 			break
 		}
 		ok = 1
-		//nodes, subtrie
+		// nodes, subtrie
 		hasMore, err := trie.VerifyRangeProof(tr.Hash(), first, last, keys, vals, proof)
 		if err != nil {
 			if hasMore {

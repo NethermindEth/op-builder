@@ -211,7 +211,7 @@ func lsubAssign(z, x *fe) {
 	z[5], _ = bits.Sub64(z[5], x[5], b)
 }
 
-func neg(z *fe, x *fe) {
+func neg(z, x *fe) {
 	if x.isZero() {
 		z.zero()
 		return
@@ -345,7 +345,6 @@ func mul(z, x, y *fe) {
 }
 
 func square(z, x *fe) {
-
 	var p [6]uint64
 
 	var u, v uint64
@@ -484,7 +483,7 @@ func madd0(a, b, c uint64) (hi uint64) {
 }
 
 // madd1 hi, lo = a*b + c
-func madd1(a, b, c uint64) (hi uint64, lo uint64) {
+func madd1(a, b, c uint64) (hi, lo uint64) {
 	var carry uint64
 	hi, lo = bits.Mul64(a, b)
 	lo, carry = bits.Add64(lo, c, 0)
@@ -493,7 +492,7 @@ func madd1(a, b, c uint64) (hi uint64, lo uint64) {
 }
 
 // madd2 hi, lo = a*b + c + d
-func madd2(a, b, c, d uint64) (hi uint64, lo uint64) {
+func madd2(a, b, c, d uint64) (hi, lo uint64) {
 	var carry uint64
 	hi, lo = bits.Mul64(a, b)
 	c, carry = bits.Add64(c, d, 0)
@@ -556,7 +555,7 @@ func madd1sb(a, b, e uint64) (superhi, hi, lo uint64) {
 	return
 }
 
-func madd3(a, b, c, d, e uint64) (hi uint64, lo uint64) {
+func madd3(a, b, c, d, e uint64) (hi, lo uint64) {
 	var carry uint64
 	hi, lo = bits.Mul64(a, b)
 	c, carry = bits.Add64(c, d, 0)

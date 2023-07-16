@@ -132,7 +132,7 @@ var createGasTests = []struct {
 
 func TestCreateGas(t *testing.T) {
 	for i, tt := range createGasTests {
-		var gasUsed = uint64(0)
+		gasUsed := uint64(0)
 		doCheck := func(testGas int) bool {
 			address := common.BytesToAddress([]byte("contract"))
 			statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
@@ -150,7 +150,7 @@ func TestCreateGas(t *testing.T) {
 			}
 
 			vmenv := NewEVM(vmctx, TxContext{}, statedb, params.AllEthashProtocolChanges, config)
-			var startGas = uint64(testGas)
+			startGas := uint64(testGas)
 			ret, gas, err := vmenv.Call(AccountRef(common.Address{}), address, nil, startGas, new(big.Int))
 			if err != nil {
 				return false

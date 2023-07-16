@@ -117,7 +117,7 @@ func (d *Database) onWriteStallEnd() {
 
 // New returns a wrapped pebble DB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
+func New(file string, cache, handles int, namespace string, readonly bool) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -258,7 +258,7 @@ func (d *Database) Get(key []byte) ([]byte, error) {
 }
 
 // Put inserts the given value into the key-value store.
-func (d *Database) Put(key []byte, value []byte) error {
+func (d *Database) Put(key, value []byte) error {
 	return d.db.Set(key, value, pebble.NoSync)
 }
 
@@ -361,7 +361,7 @@ func (d *Database) Stat(property string) (string, error) {
 // A nil start is treated as a key before all keys in the data store; a nil limit
 // is treated as a key after all keys in the data store. If both is nil then it
 // will compact entire data store.
-func (d *Database) Compact(start []byte, limit []byte) error {
+func (d *Database) Compact(start, limit []byte) error {
 	// There is no special flag to represent the end of key range
 	// in pebble(nil in leveldb). Use an ugly hack to construct a
 	// large key to represent it.
@@ -542,7 +542,7 @@ type pebbleIterator struct {
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
-func (d *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (d *Database) NewIterator(prefix, start []byte) ethdb.Iterator {
 	iter := d.db.NewIter(&pebble.IterOptions{
 		LowerBound: append(prefix, start...),
 		UpperBound: upperBound(prefix),

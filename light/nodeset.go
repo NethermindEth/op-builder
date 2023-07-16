@@ -44,7 +44,7 @@ func NewNodeSet() *NodeSet {
 }
 
 // Put stores a new node in the set
-func (db *NodeSet) Put(key []byte, value []byte) error {
+func (db *NodeSet) Put(key, value []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -142,7 +142,7 @@ func (n NodeList) NodeSet() *NodeSet {
 }
 
 // Put stores a new node at the end of the list
-func (n *NodeList) Put(key []byte, value []byte) error {
+func (n *NodeList) Put(key, value []byte) error {
 	*n = append(*n, value)
 	return nil
 }

@@ -202,7 +202,7 @@ func (b *LesApiBackend) RemoveTx(txHash common.Hash) {
 	b.eth.txPool.RemoveTx(txHash)
 }
 
-func (b *LesApiBackend) SendBundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, uuid uuid.UUID, signingAddress common.Address, minTimestamp uint64, maxTimestamp uint64, revertingTxHashes []common.Hash) error {
+func (b *LesApiBackend) SendBundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, uuid uuid.UUID, signingAddress common.Address, minTimestamp, maxTimestamp uint64, revertingTxHashes []common.Hash) error {
 	return b.eth.txPool.AddMevBundle(txs, big.NewInt(blockNumber.Int64()), uuid, signingAddress, minTimestamp, maxTimestamp, revertingTxHashes)
 }
 
@@ -213,7 +213,7 @@ func (b *LesApiBackend) SendSBundle(ctx context.Context, sbundle *types.SBundle)
 func (b *LesApiBackend) CancelSBundles(ctx context.Context, hashes []common.Hash) {
 }
 
-func (b *LesApiBackend) SendMegabundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, minTimestamp uint64, maxTimestamp uint64, revertingTxHashes []common.Hash, relayAddr common.Address) error {
+func (b *LesApiBackend) SendMegabundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, minTimestamp, maxTimestamp uint64, revertingTxHashes []common.Hash, relayAddr common.Address) error {
 	return nil
 }
 
@@ -233,7 +233,7 @@ func (b *LesApiBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 	return b.eth.txPool.GetNonce(ctx, addr)
 }
 
-func (b *LesApiBackend) Stats() (pending int, queued int) {
+func (b *LesApiBackend) Stats() (pending, queued int) {
 	return b.eth.txPool.Stats(), 0
 }
 
@@ -342,7 +342,7 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
 
-func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error) {
+func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error) {
 	return b.eth.stateAtBlock(ctx, block, reexec)
 }
 

@@ -219,7 +219,8 @@ func BenchmarkAlgo(b *testing.B) {
 
 // runAlgo executes a single algoTest case and returns the profit.
 func runAlgoTest(algo AlgoType, config *params.ChainConfig, alloc core.GenesisAlloc,
-	txPool map[common.Address]types.Transactions, bundles []types.SimulatedBundle, header *types.Header, scale int) (gotProfit *big.Int, err error) {
+	txPool map[common.Address]types.Transactions, bundles []types.SimulatedBundle, header *types.Header, scale int,
+) (gotProfit *big.Int, err error) {
 	var (
 		statedb, chData = genTestSetupWithAlloc(config, alloc)
 		env             = newEnvironment(chData, statedb, header.Coinbase, header.GasLimit*uint64(scale), header.BaseFee)

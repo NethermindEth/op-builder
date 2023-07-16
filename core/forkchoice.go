@@ -74,7 +74,7 @@ func NewForkChoice(chainReader ChainReader, preserve func(header *types.Header) 
 // In the td mode, the new head is chosen if the corresponding
 // total difficulty is higher. In the extern mode, the trusted
 // header is always selected as the head.
-func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (bool, error) {
+func (f *ForkChoice) ReorgNeeded(current, extern *types.Header) (bool, error) {
 	var (
 		localTD  = f.chain.GetTd(current.Hash(), current.Number.Uint64())
 		externTd = f.chain.GetTd(extern.Hash(), extern.Number.Uint64())

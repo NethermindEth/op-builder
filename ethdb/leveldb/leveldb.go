@@ -85,7 +85,7 @@ type Database struct {
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
+func New(file string, cache, handles int, namespace string, readonly bool) (*Database, error) {
 	return NewCustom(file, namespace, func(options *opt.Options) {
 		// Ensure we have some minimal caching and file guarantees
 		if cache < minCache {
@@ -107,7 +107,7 @@ func New(file string, cache int, handles int, namespace string, readonly bool) (
 // NewCustom returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
 // The customize function allows the caller to modify the leveldb options.
-func NewCustom(file string, namespace string, customize func(options *opt.Options)) (*Database, error) {
+func NewCustom(file, namespace string, customize func(options *opt.Options)) (*Database, error) {
 	options := configureOptions(customize)
 	logger := log.New("database", file)
 	usedCache := options.GetBlockCacheCapacity() + options.GetWriteBuffer()*2
@@ -197,7 +197,7 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 }
 
 // Put inserts the given value into the key-value store.
-func (db *Database) Put(key []byte, value []byte) error {
+func (db *Database) Put(key, value []byte) error {
 	return db.db.Put(key, value, nil)
 }
 
@@ -226,7 +226,7 @@ func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
-func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (db *Database) NewIterator(prefix, start []byte) ethdb.Iterator {
 	return db.db.NewIterator(bytesPrefixRange(prefix, start), nil)
 }
 
@@ -255,7 +255,7 @@ func (db *Database) Stat(property string) (string, error) {
 // A nil start is treated as a key before all keys in the data store; a nil limit
 // is treated as a key after all keys in the data store. If both is nil then it
 // will compact entire data store.
-func (db *Database) Compact(start []byte, limit []byte) error {
+func (db *Database) Compact(start, limit []byte) error {
 	return db.db.CompactRange(util.Range{Start: start, Limit: limit})
 }
 

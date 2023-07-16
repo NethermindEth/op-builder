@@ -378,7 +378,7 @@ func isWebsocket(r *http.Request) bool {
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string, jwtSecret []byte) http.Handler {
+func NewHTTPHandlerStack(srv http.Handler, cors, vhosts []string, jwtSecret []byte) http.Handler {
 	// Wrap the CORS-handler within a host-handler
 	handler := newCorsHandler(srv, cors)
 	handler = newVHostHandler(vhosts, handler)

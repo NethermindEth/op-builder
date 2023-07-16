@@ -16,10 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-const maxDepth = 5
-const maxBodySize = 50
-const defaultSimTimeout = time.Second * 5
-const maxSimTimeout = time.Second * 30
+const (
+	maxDepth          = 5
+	maxBodySize       = 50
+	defaultSimTimeout = time.Second * 5
+	maxSimTimeout     = time.Second * 30
+)
 
 var (
 	ErrMaxDepth         = errors.New("max depth reached")

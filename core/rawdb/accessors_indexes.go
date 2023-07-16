@@ -157,7 +157,7 @@ func WriteBloomBits(db ethdb.KeyValueWriter, bit uint, section uint64, head comm
 
 // DeleteBloombits removes all compressed bloom bits vector belonging to the
 // given section range and bit index.
-func DeleteBloombits(db ethdb.Database, bit uint, from uint64, to uint64) {
+func DeleteBloombits(db ethdb.Database, bit uint, from, to uint64) {
 	start, end := bloomBitsKey(bit, from, common.Hash{}), bloomBitsKey(bit, to, common.Hash{})
 	it := db.NewIterator(nil, start)
 	defer it.Release()

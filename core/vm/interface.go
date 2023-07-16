@@ -62,7 +62,7 @@ type StateDB interface {
 	Empty(common.Address) bool
 
 	AddressInAccessList(addr common.Address) bool
-	SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool)
+	SlotInAccessList(addr common.Address, slot common.Hash) (addressOk, slotOk bool)
 	// AddAddressToAccessList adds the given address to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
 	AddAddressToAccessList(addr common.Address)

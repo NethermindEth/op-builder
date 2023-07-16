@@ -92,7 +92,7 @@ func calcDatasetSize(epoch int) uint64 {
 
 // hasher is a repetitive hasher allowing the same hash data structures to be
 // reused between hash runs instead of requiring new ones to be created.
-type hasher func(dest []byte, data []byte)
+type hasher func(dest, data []byte)
 
 // makeHasher creates a repetitive hasher, allowing the same hash data structures to
 // be reused between hash runs instead of requiring new ones to be created. The returned
@@ -109,7 +109,7 @@ func makeHasher(h hash.Hash) hasher {
 		panic("can't find Read method on hash")
 	}
 	outputLen := rh.Size()
-	return func(dest []byte, data []byte) {
+	return func(dest, data []byte) {
 		rh.Reset()
 		rh.Write(data)
 		rh.Read(dest[:outputLen])
@@ -225,7 +225,7 @@ func fnv(a, b uint32) uint32 {
 }
 
 // fnvHash mixes in data into mix using the ethash fnv method.
-func fnvHash(mix []uint32, data []uint32) {
+func fnvHash(mix, data []uint32) {
 	for i := 0; i < len(mix); i++ {
 		mix[i] = mix[i]*0x01000193 ^ data[i]
 	}
@@ -335,7 +335,7 @@ func generateDataset(dest []uint32, epoch uint64, cache []uint32) {
 
 // hashimoto aggregates data from the full dataset in order to produce our final
 // value for a particular header hash and nonce.
-func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32) []uint32) ([]byte, []byte) {
+func hashimoto(hash []byte, nonce, size uint64, lookup func(index uint32) []uint32) ([]byte, []byte) {
 	// Calculate the number of theoretical rows (we use one buffer nonetheless)
 	rows := uint32(size / mixBytes)
 
@@ -818,7 +818,8 @@ var datasetSizes = [maxEpoch]uint64{
 	18102613376, 18111004544, 18119388544, 18127781248, 18136170368,
 	18144558976, 18152947328, 18161336192, 18169724288, 18178108544,
 	18186498944, 18194886784, 18203275648, 18211666048, 18220048768,
-	18228444544, 18236833408, 18245220736}
+	18228444544, 18236833408, 18245220736,
+}
 
 // cacheSizes is a lookup table for the ethash verification cache size for the
 // first 2048 epochs (i.e. 61440000 blocks).
@@ -1149,4 +1150,5 @@ var cacheSizes = [maxEpoch]uint64{
 	282590272, 282720832, 282853184, 282983744, 283115072, 283246144,
 	283377344, 283508416, 283639744, 283770304, 283901504, 284032576,
 	284163136, 284294848, 284426176, 284556992, 284687296, 284819264,
-	284950208, 285081536}
+	284950208, 285081536,
+}

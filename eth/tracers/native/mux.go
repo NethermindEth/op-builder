@@ -59,7 +59,7 @@ func newMuxTracer(ctx *tracers.Context, cfg json.RawMessage) (tracers.Tracer, er
 }
 
 // CaptureStart implements the EVMLogger interface to initialize the tracing operation.
-func (t *muxTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (t *muxTracer) CaptureStart(env *vm.EVM, from, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	for _, t := range t.tracers {
 		t.CaptureStart(env, from, to, create, input, gas, value)
 	}
@@ -87,7 +87,7 @@ func (t *muxTracer) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scop
 }
 
 // CaptureEnter is called when EVM enters a new scope (via call, create or selfdestruct).
-func (t *muxTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+func (t *muxTracer) CaptureEnter(typ vm.OpCode, from, to common.Address, input []byte, gas uint64, value *big.Int) {
 	for _, t := range t.tracers {
 		t.CaptureEnter(typ, from, to, input, gas, value)
 	}

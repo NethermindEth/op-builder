@@ -86,7 +86,7 @@ type TxPool struct {
 // rollback is expected.
 type TxRelayBackend interface {
 	Send(txs types.Transactions)
-	NewHead(head common.Hash, mined []common.Hash, rollback []common.Hash)
+	NewHead(head common.Hash, mined, rollback []common.Hash)
 	Discard(hashes []common.Hash)
 }
 
@@ -153,7 +153,7 @@ func (txc txStateChanges) setState(txHash common.Hash, mined bool) {
 }
 
 // getLists creates lists of mined and rolled back tx hashes
-func (txc txStateChanges) getLists() (mined []common.Hash, rollback []common.Hash) {
+func (txc txStateChanges) getLists() (mined, rollback []common.Hash) {
 	for hash, val := range txc {
 		if val {
 			mined = append(mined, hash)
@@ -444,7 +444,7 @@ func (pool *TxPool) Add(ctx context.Context, tx *types.Transaction) error {
 	if err := pool.add(ctx, tx); err != nil {
 		return err
 	}
-	//fmt.Println("Send", tx.Hash())
+	// fmt.Println("Send", tx.Hash())
 	pool.relay.Send(types.Transactions{tx})
 
 	pool.chainDb.Put(tx.Hash().Bytes(), data)
@@ -563,6 +563,6 @@ func (pool *TxPool) MevBundles(blockNumber *big.Int, blockTimestamp uint64) ([]t
 }
 
 // AddMevBundle adds a mev bundle to the pool
-func (pool *TxPool) AddMevBundle(txs types.Transactions, blockNumber *big.Int, replacementUuid uuid.UUID, signingAddress common.Address, minTimestamp uint64, maxTimestamp uint64, revertingTxHashes []common.Hash) error {
+func (pool *TxPool) AddMevBundle(txs types.Transactions, blockNumber *big.Int, replacementUuid uuid.UUID, signingAddress common.Address, minTimestamp, maxTimestamp uint64, revertingTxHashes []common.Hash) error {
 	return nil
 }

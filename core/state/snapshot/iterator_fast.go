@@ -78,7 +78,7 @@ type fastIterator struct {
 // newFastIterator creates a new hierarchical account or storage iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek common.Hash, accountIterator bool) (*fastIterator, error) {
+func newFastIterator(tree *Tree, root, account, seek common.Hash, accountIterator bool) (*fastIterator, error) {
 	snap := tree.Snapshot(root)
 	if snap == nil {
 		return nil, fmt.Errorf("unknown snapshot: %x", root)
@@ -119,7 +119,7 @@ func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek com
 // which it prepares the stack for step-by-step iteration.
 func (fi *fastIterator) init() {
 	// Track which account hashes are iterators positioned on
-	var positioned = make(map[common.Hash]int)
+	positioned := make(map[common.Hash]int)
 
 	// Position all iterators and track how many remain live
 	for i := 0; i < len(fi.iterators); i++ {
@@ -338,13 +338,13 @@ func (fi *fastIterator) Debug() {
 // newFastAccountIterator creates a new hierarchical account iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastAccountIterator(tree *Tree, root common.Hash, seek common.Hash) (AccountIterator, error) {
+func newFastAccountIterator(tree *Tree, root, seek common.Hash) (AccountIterator, error) {
 	return newFastIterator(tree, root, common.Hash{}, seek, true)
 }
 
 // newFastStorageIterator creates a new hierarchical storage iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastStorageIterator(tree *Tree, root common.Hash, account common.Hash, seek common.Hash) (StorageIterator, error) {
+func newFastStorageIterator(tree *Tree, root, account, seek common.Hash) (StorageIterator, error) {
 	return newFastIterator(tree, root, account, seek, false)
 }

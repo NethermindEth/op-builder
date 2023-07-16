@@ -616,7 +616,7 @@ func (bc *BlockChain) SetSafe(header *types.Header) {
 // requested time. If both `head` and `time` is 0, the chain is rewound to genesis.
 //
 // The method returns the block number where the requested root cap was found.
-func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash, repair bool) (uint64, error) {
+func (bc *BlockChain) setHeadBeyondRoot(head, time uint64, root common.Hash, repair bool) (uint64, error) {
 	if !bc.chainmu.TryLock() {
 		return 0, errChainStopped
 	}
@@ -854,7 +854,7 @@ func (bc *BlockChain) Export(w io.Writer) error {
 }
 
 // ExportN writes a subset of the active chain to the given writer.
-func (bc *BlockChain) ExportN(w io.Writer, first uint64, last uint64) error {
+func (bc *BlockChain) ExportN(w io.Writer, first, last uint64) error {
 	if first > last {
 		return fmt.Errorf("export failed: first (%d) is greater than last (%d)", first, last)
 	}
@@ -1146,7 +1146,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		// a background routine to re-indexed all indices in [ancients - txlookupLimit, ancients)
 		// range. In this case, all tx indices of newly imported blocks should be
 		// generated.
-		var batch = bc.db.NewBatch()
+		batch := bc.db.NewBatch()
 		for i, block := range blockChain {
 			if bc.txLookupLimit == 0 || ancientLimit <= bc.txLookupLimit || block.NumberU64() >= ancientLimit-bc.txLookupLimit {
 				rawdb.WriteTxLookupEntriesByBlock(batch, block)

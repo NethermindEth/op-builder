@@ -283,7 +283,7 @@ func toGoType(index int, t Type, output []byte) (interface{}, error) {
 }
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
-func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
+func lengthPrefixPointsTo(index int, output []byte) (start, length int, err error) {
 	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+32])
 	bigOffsetEnd.Add(bigOffsetEnd, common.Big32)
 	outputLength := big.NewInt(int64(len(output)))

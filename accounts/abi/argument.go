@@ -128,7 +128,7 @@ func (arguments Arguments) Copy(v interface{}, values []interface{}) error {
 }
 
 // unpackAtomic unpacks ( hexdata -> go ) a single value
-func (arguments Arguments) copyAtomic(v interface{}, marshalledValues interface{}) error {
+func (arguments Arguments) copyAtomic(v, marshalledValues interface{}) error {
 	dst := reflect.ValueOf(v).Elem()
 	src := reflect.ValueOf(marshalledValues)
 

@@ -102,7 +102,7 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 }
 
 // Put inserts the given value into the key-value store.
-func (db *Database) Put(key []byte, value []byte) error {
+func (db *Database) Put(key, value []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -143,7 +143,7 @@ func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
-func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (db *Database) NewIterator(prefix, start []byte) ethdb.Iterator {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -189,7 +189,7 @@ func (db *Database) Stat(property string) (string, error) {
 
 // Compact is not supported on a memory database, but there's no need either as
 // a memory database doesn't waste space anyway.
-func (db *Database) Compact(start []byte, limit []byte) error {
+func (db *Database) Compact(start, limit []byte) error {
 	return nil
 }
 

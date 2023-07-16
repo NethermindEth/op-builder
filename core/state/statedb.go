@@ -43,7 +43,7 @@ type revision struct {
 
 type proofList [][]byte
 
-func (n *proofList) Put(key []byte, value []byte) error {
+func (n *proofList) Put(key, value []byte) error {
 	*n = append(*n, value)
 	return nil
 }
@@ -1164,7 +1164,7 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 }
 
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
-func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
+func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
 }
 

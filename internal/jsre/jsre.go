@@ -311,7 +311,7 @@ func (re *JSRE) Interrupt(v interface{}) {
 }
 
 // Compile compiles and then runs a piece of JS code.
-func (re *JSRE) Compile(filename string, src string) (err error) {
+func (re *JSRE) Compile(filename, src string) (err error) {
 	re.Do(func(vm *goja.Runtime) { _, err = compileAndRun(vm, filename, src) })
 	return err
 }
@@ -331,7 +331,7 @@ func (re *JSRE) loadScript(call Call) (goja.Value, error) {
 	return value, nil
 }
 
-func compileAndRun(vm *goja.Runtime, filename string, src string) (goja.Value, error) {
+func compileAndRun(vm *goja.Runtime, filename, src string) (goja.Value, error) {
 	script, err := goja.Compile(filename, src, false)
 	if err != nil {
 		return goja.Null(), err

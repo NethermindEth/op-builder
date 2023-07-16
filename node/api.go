@@ -155,7 +155,7 @@ func (api *adminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) 
 }
 
 // StartHTTP starts the HTTP RPC API server.
-func (api *adminAPI) StartHTTP(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+func (api *adminAPI) StartHTTP(host *string, port *int, cors, apis, vhosts *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -210,7 +210,7 @@ func (api *adminAPI) StartHTTP(host *string, port *int, cors *string, apis *stri
 
 // StartRPC starts the HTTP RPC API server.
 // Deprecated: use StartHTTP instead.
-func (api *adminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+func (api *adminAPI) StartRPC(host *string, port *int, cors, apis, vhosts *string) (bool, error) {
 	log.Warn("Deprecation warning", "method", "admin.StartRPC", "use-instead", "admin.StartHTTP")
 	return api.StartHTTP(host, port, cors, apis, vhosts)
 }
@@ -229,7 +229,7 @@ func (api *adminAPI) StopRPC() (bool, error) {
 }
 
 // StartWS starts the websocket RPC API server.
-func (api *adminAPI) StartWS(host *string, port *int, allowedOrigins *string, apis *string) (bool, error) {
+func (api *adminAPI) StartWS(host *string, port *int, allowedOrigins, apis *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 

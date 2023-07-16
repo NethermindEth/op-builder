@@ -109,7 +109,7 @@ func loadAndParseJournal(db ethdb.KeyValueStore, base *diskLayer) (snapshot, jou
 	// is not matched with disk layer; or the it's the legacy-format journal,
 	// etc.), we just discard all diffs and try to recover them later.
 	var current snapshot = base
-	err := iterateJournal(db, func(parent common.Hash, root common.Hash, destructSet map[common.Hash]struct{}, accountData map[common.Hash][]byte, storageData map[common.Hash]map[common.Hash][]byte) error {
+	err := iterateJournal(db, func(parent, root common.Hash, destructSet map[common.Hash]struct{}, accountData map[common.Hash][]byte, storageData map[common.Hash]map[common.Hash][]byte) error {
 		current = newDiffLayer(current, root, destructSet, accountData, storageData)
 		return nil
 	})
@@ -120,7 +120,7 @@ func loadAndParseJournal(db ethdb.KeyValueStore, base *diskLayer) (snapshot, jou
 }
 
 // loadSnapshot loads a pre-existing state snapshot backed by a key-value store.
-func loadSnapshot(diskdb ethdb.KeyValueStore, triedb *trie.Database, root common.Hash, cache int, recovery bool, noBuild bool) (snapshot, bool, error) {
+func loadSnapshot(diskdb ethdb.KeyValueStore, triedb *trie.Database, root common.Hash, cache int, recovery, noBuild bool) (snapshot, bool, error) {
 	// If snapshotting is disabled (initial sync in progress), don't do anything,
 	// wait for the chain to permit us to do something meaningful
 	if rawdb.ReadSnapshotDisabled(diskdb) {
@@ -271,7 +271,7 @@ func (dl *diffLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
 
 // journalCallback is a function which is invoked by iterateJournal, every
 // time a difflayer is loaded from disk.
-type journalCallback = func(parent common.Hash, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error
+type journalCallback = func(parent, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error
 
 // iterateJournal iterates through the journalled difflayers, loading them from
 // the database, and invoking the callback for each loaded layer.

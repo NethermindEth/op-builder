@@ -307,7 +307,7 @@ func writeAuthors(files []string) {
 		content.WriteString("\n")
 	}
 	fmt.Println("writing AUTHORS")
-	if err := os.WriteFile("AUTHORS", content.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("AUTHORS", content.Bytes(), 0o644); err != nil {
 		log.Fatalln(err)
 	}
 }

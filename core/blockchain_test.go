@@ -53,12 +53,10 @@ var (
 // header only chain. The database and genesis specification for block generation
 // are also returned in case more test blocks are needed later.
 func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *Genesis, *BlockChain, error) {
-	var (
-		genesis = &Genesis{
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.AllEthashProtocolChanges,
-		}
-	)
+	genesis := &Genesis{
+		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:  params.AllEthashProtocolChanges,
+	}
 	// Initialize a fresh chain with only a genesis block
 	blockchain, _ := NewBlockChain(rawdb.NewMemoryDatabase(), nil, genesis, nil, engine, vm.Config{}, nil, nil)
 
@@ -891,7 +889,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	remove := blocks[height/2].NumberU64()
 
 	// Create a small assertion method to check the three heads
-	assert := func(t *testing.T, kind string, chain *BlockChain, header uint64, fast uint64, block uint64) {
+	assert := func(t *testing.T, kind string, chain *BlockChain, header, fast, block uint64) {
 		t.Helper()
 
 		if num := chain.CurrentBlock().Number.Uint64(); num != block {
@@ -1944,7 +1942,7 @@ func TestLowDiffLongChain(t *testing.T) {
 // -1: the transition won't happen
 // 0:  the transition happens since genesis
 // 1:  the transition happens after some chain segments
-func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommonAncestorAndPruneblock int, mergePoint int) {
+func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommonAncestorAndPruneblock, mergePoint int) {
 	// Generate a canonical chain to act as the main dataset
 	chainConfig := *params.TestChainConfig
 	var (
@@ -2058,9 +2056,9 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 //	[ Cn, Cn+1, Cc, Sn+3 ... Sm]
 //	^    ^    ^  pruned
 func TestPrunedImportSide(t *testing.T) {
-	//glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
-	//glogger.Verbosity(3)
-	//log.Root().SetHandler(log.Handler(glogger))
+	// glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
+	// glogger.Verbosity(3)
+	// log.Root().SetHandler(log.Handler(glogger))
 	testSideImport(t, 3, 3, -1)
 	testSideImport(t, 3, -3, -1)
 	testSideImport(t, 10, 0, -1)
@@ -2069,9 +2067,9 @@ func TestPrunedImportSide(t *testing.T) {
 }
 
 func TestPrunedImportSideWithMerging(t *testing.T) {
-	//glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
-	//glogger.Verbosity(3)
-	//log.Root().SetHandler(log.Handler(glogger))
+	// glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
+	// glogger.Verbosity(3)
+	// log.Root().SetHandler(log.Handler(glogger))
 	testSideImport(t, 3, 3, 0)
 	testSideImport(t, 3, -3, 0)
 	testSideImport(t, 10, 0, 0)
@@ -2210,18 +2208,23 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 func TestInsertKnownHeadersWithMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "headers", 0)
 }
+
 func TestInsertKnownReceiptChainWithMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "receipts", 0)
 }
+
 func TestInsertKnownBlocksWithMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "blocks", 0)
 }
+
 func TestInsertKnownHeadersAfterMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "headers", 1)
 }
+
 func TestInsertKnownReceiptChainAfterMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "receipts", 1)
 }
+
 func TestInsertKnownBlocksAfterMerging(t *testing.T) {
 	testInsertKnownChainDataWithMerging(t, "blocks", 1)
 }
@@ -2976,7 +2979,8 @@ func TestDeleteRecreateSlots(t *testing.T) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3176,7 +3180,8 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3217,13 +3222,13 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 		blocknum int
 		values   map[int]int
 	}
-	var current = &expectation{
+	current := &expectation{
 		exist:    true, // exists in genesis
 		blocknum: 0,
 		values:   map[int]int{1: 1, 2: 2},
 	}
 	var expectations []*expectation
-	var newDestruct = func(e *expectation, b *BlockGen) *types.Transaction {
+	newDestruct := func(e *expectation, b *BlockGen) *types.Transaction {
 		tx, _ := types.SignTx(types.NewTransaction(nonce, aa,
 			big.NewInt(0), 50000, b.header.BaseFee, nil), types.HomesteadSigner{}, key)
 		nonce++
@@ -3231,10 +3236,10 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 			e.exist = false
 			e.values = nil
 		}
-		//t.Logf("block %d; adding destruct\n", e.blocknum)
+		// t.Logf("block %d; adding destruct\n", e.blocknum)
 		return tx
 	}
-	var newResurrect = func(e *expectation, b *BlockGen) *types.Transaction {
+	newResurrect := func(e *expectation, b *BlockGen) *types.Transaction {
 		tx, _ := types.SignTx(types.NewTransaction(nonce, bb,
 			big.NewInt(0), 100000, b.header.BaseFee, nil), types.HomesteadSigner{}, key)
 		nonce++
@@ -3242,12 +3247,12 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 			e.exist = true
 			e.values = map[int]int{3: e.blocknum + 1, 4: 4}
 		}
-		//t.Logf("block %d; adding resurrect\n", e.blocknum)
+		// t.Logf("block %d; adding resurrect\n", e.blocknum)
 		return tx
 	}
 
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 150, func(i int, b *BlockGen) {
-		var exp = new(expectation)
+		exp := new(expectation)
 		exp.blocknum = i + 1
 		exp.values = make(map[int]int)
 		for k, v := range current.values {
@@ -3273,15 +3278,15 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 	})
 	// Import the canonical chain
 	chain, err := NewBlockChain(rawdb.NewMemoryDatabase(), nil, gspec, nil, engine, vm.Config{
-		//Debug:  true,
-		//Tracer: vm.NewJSONLogger(nil, os.Stdout),
+		// Debug:  true,
+		// Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
 	defer chain.Stop()
 
-	var asHash = func(num int) common.Hash {
+	asHash := func(num int) common.Hash {
 		return common.BytesToHash([]byte{byte(num)})
 	}
 	for i, block := range blocks {
@@ -3363,7 +3368,8 @@ func TestInitThenFailCreateContract(t *testing.T) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3404,8 +3410,8 @@ func TestInitThenFailCreateContract(t *testing.T) {
 
 	// Import the canonical chain
 	chain, err := NewBlockChain(rawdb.NewMemoryDatabase(), nil, gspec, nil, engine, vm.Config{
-		//Debug:  true,
-		//Tracer: vm.NewJSONLogger(nil, os.Stdout),
+		// Debug:  true,
+		// Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
@@ -3658,7 +3664,7 @@ func TestEIP1559Transition(t *testing.T) {
 // Tests the scenario the chain is requested to another point with the missing state.
 // It expects the state is recovered and all relevant chain markers are set correctly.
 func TestSetCanonical(t *testing.T) {
-	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	var (
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -3737,7 +3743,7 @@ func TestSetCanonical(t *testing.T) {
 // TestCanonicalHashMarker tests all the canonical hash markers are updated/deleted
 // correctly in case reorg is called.
 func TestCanonicalHashMarker(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		forkA int
 		forkB int
 	}{
@@ -3898,7 +3904,7 @@ func TestTxIndexer(t *testing.T) {
 		verifyRange(db, *tail, 128, true)
 	}
 
-	var cases = []struct {
+	cases := []struct {
 		limitA uint64
 		tailA  uint64
 		limitB uint64
@@ -4059,6 +4065,7 @@ func TestCreateThenDeletePreByzantium(t *testing.T) {
 		ByzantiumBlock: big.NewInt(1_700_000),
 	})
 }
+
 func TestCreateThenDeletePostByzantium(t *testing.T) {
 	testCreateThenDelete(t, params.TestChainConfig)
 }
@@ -4083,7 +4090,8 @@ func testCreateThenDelete(t *testing.T, config *params.ChainConfig) {
 		byte(vm.PUSH1), 0x1,
 		byte(vm.SSTORE),
 		// Get the runtime-code on the stack
-		byte(vm.PUSH32)}
+		byte(vm.PUSH32),
+	}
 	initCode = append(initCode, code...)
 	initCode = append(initCode, []byte{
 		byte(vm.PUSH1), 0x0, // offset
@@ -4125,8 +4133,8 @@ func testCreateThenDelete(t *testing.T, config *params.ChainConfig) {
 	})
 	// Import the canonical chain
 	chain, err := NewBlockChain(rawdb.NewMemoryDatabase(), nil, gspec, nil, engine, vm.Config{
-		//Debug:  true,
-		//Tracer: logger.NewJSONLogger(nil, os.Stdout),
+		// Debug:  true,
+		// Tracer: logger.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
@@ -4170,7 +4178,8 @@ func TestTransientStorageReset(t *testing.T) {
 		byte(vm.TSTORE),
 
 		// Get the runtime-code on the stack
-		byte(vm.PUSH32)}
+		byte(vm.PUSH32),
+	}
 	initCode = append(initCode, code...)
 	initCode = append(initCode, []byte{
 		byte(vm.PUSH1), 0x0, // offset

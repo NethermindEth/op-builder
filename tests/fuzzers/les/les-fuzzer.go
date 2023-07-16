@@ -86,7 +86,7 @@ func makechain() (bc *core.BlockChain, addrHashes, txHashes []common.Hash) {
 	return
 }
 
-func makeTries() (chtTrie *trie.Trie, bloomTrie *trie.Trie, chtKeys, bloomKeys [][]byte) {
+func makeTries() (chtTrie, bloomTrie *trie.Trie, chtKeys, bloomKeys [][]byte) {
 	chtTrie = trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase()))
 	bloomTrie = trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase()))
 	for i := 0; i < testChainLen; i++ {

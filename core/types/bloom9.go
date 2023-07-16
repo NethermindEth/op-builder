@@ -63,7 +63,7 @@ func (b *Bloom) Add(d []byte) {
 }
 
 // add is internal version of Add, which takes a scratch buffer for reuse (needs to be at least 6 bytes)
-func (b *Bloom) add(d []byte, buf []byte) {
+func (b *Bloom) add(d, buf []byte) {
 	i1, v1, i2, v2, i3, v3 := bloomValues(d, buf)
 	b[i1] |= v1
 	b[i2] |= v2
@@ -136,7 +136,7 @@ func Bloom9(data []byte) []byte {
 }
 
 // bloomValues returns the bytes (index-value pairs) to set for the given data
-func bloomValues(data []byte, hashbuf []byte) (uint, byte, uint, byte, uint, byte) {
+func bloomValues(data, hashbuf []byte) (uint, byte, uint, byte, uint, byte) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	sha.Reset()
 	sha.Write(data)

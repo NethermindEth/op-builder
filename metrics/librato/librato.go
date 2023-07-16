@@ -32,11 +32,11 @@ type Reporter struct {
 	intervalSec     int64
 }
 
-func NewReporter(r metrics.Registry, d time.Duration, e string, t string, s string, p []float64, u time.Duration) *Reporter {
+func NewReporter(r metrics.Registry, d time.Duration, e, t, s string, p []float64, u time.Duration) *Reporter {
 	return &Reporter{e, t, "", s, d, r, p, translateTimerAttributes(u), int64(d / time.Second)}
 }
 
-func Librato(r metrics.Registry, d time.Duration, e string, t string, s string, p []float64, u time.Duration) {
+func Librato(r metrics.Registry, d time.Duration, e, t, s string, p []float64, u time.Duration) {
 	NewReporter(r, d, e, t, s, p, u).Run()
 }
 
@@ -70,6 +70,7 @@ func sumSquares(s metrics.Sample) float64 {
 	}
 	return sumSquares
 }
+
 func sumSquaresTimer(t metrics.Timer) float64 {
 	count := float64(t.Count())
 	sumSquared := math.Pow(count*t.Mean(), 2)

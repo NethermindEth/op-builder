@@ -86,7 +86,7 @@ func (db *Database) ReadAncients(fn func(op ethdb.AncientReaderOp) error) (err e
 	return fn(db)
 }
 
-func (db *Database) Put(key []byte, value []byte) error {
+func (db *Database) Put(key, value []byte) error {
 	panic("not supported")
 }
 
@@ -122,7 +122,7 @@ func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
 	panic("not supported")
 }
 
-func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (db *Database) NewIterator(prefix, start []byte) ethdb.Iterator {
 	panic("not supported")
 }
 
@@ -134,7 +134,7 @@ func (db *Database) AncientDatadir() (string, error) {
 	panic("not supported")
 }
 
-func (db *Database) Compact(start []byte, limit []byte) error {
+func (db *Database) Compact(start, limit []byte) error {
 	return nil
 }
 

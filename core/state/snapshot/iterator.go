@@ -247,7 +247,7 @@ type diffStorageIterator struct {
 // "destructed" returned. If it's true then it means the whole storage is
 // destructed in this layer(maybe recreated too), don't bother deeper layer
 // for storage retrieval.
-func (dl *diffLayer) StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool) {
+func (dl *diffLayer) StorageIterator(account, seek common.Hash) (StorageIterator, bool) {
 	// Create the storage for this account even it's marked
 	// as destructed. The iterator is for the new one which
 	// just has the same address as the deleted one.
@@ -339,7 +339,7 @@ type diskStorageIterator struct {
 // If the whole storage is destructed, then all entries in the disk
 // layer are deleted already. So the "destructed" flag returned here
 // is always false.
-func (dl *diskLayer) StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool) {
+func (dl *diskLayer) StorageIterator(account, seek common.Hash) (StorageIterator, bool) {
 	pos := common.TrimRightZeroes(seek[:])
 	return &diskStorageIterator{
 		layer:   dl,

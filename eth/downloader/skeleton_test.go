@@ -109,7 +109,7 @@ func newSkeletonTestPeerWithHook(id string, headers []*types.Header, serve func(
 // RequestHeadersByNumber constructs a GetBlockHeaders function based on a numbered
 // origin; associated with a particular peer in the download tester. The returned
 // function can be used to retrieve batches of headers from the particular peer.
-func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool, sink chan *eth.Response) (*eth.Request, error) {
+func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount, skip int, reverse bool, sink chan *eth.Response) (*eth.Request, error) {
 	// Since skeleton test peer are in-memory mocks, dropping the does not make
 	// them inaccessible. As such, check a local `dropped` field to see if the
 	// peer has been dropped and should not respond any more.
@@ -514,7 +514,7 @@ func TestSkeletonSyncExtend(t *testing.T) {
 // Tests that the skeleton sync correctly retrieves headers from one or more
 // peers without duplicates or other strange side effects.
 func TestSkeletonSyncRetrievals(t *testing.T) {
-	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	// Since skeleton headers don't need to be meaningful, beyond a parent hash
 	// progression, create a long fake chain to test with.

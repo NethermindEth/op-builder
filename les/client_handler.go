@@ -388,7 +388,7 @@ func (pc *peerConnection) Head() (common.Hash, *big.Int) {
 	return pc.peer.HeadAndTd()
 }
 
-func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool) error {
+func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount, skip int, reverse bool) error {
 	rq := &distReq{
 		getCost: func(dp distPeer) uint64 {
 			peer := dp.(*serverPeer)
@@ -412,7 +412,7 @@ func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount int, s
 	return nil
 }
 
-func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
+func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount, skip int, reverse bool) error {
 	rq := &distReq{
 		getCost: func(dp distPeer) uint64 {
 			peer := dp.(*serverPeer)

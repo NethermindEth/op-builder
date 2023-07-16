@@ -143,7 +143,7 @@ type queue struct {
 }
 
 // newQueue creates a new download queue for scheduling block retrieval.
-func newQueue(blockCacheLimit int, thresholdInitialSize int) *queue {
+func newQueue(blockCacheLimit, thresholdInitialSize int) *queue {
 	lock := new(sync.RWMutex)
 	q := &queue{
 		headerContCh:     make(chan bool),
@@ -157,7 +157,7 @@ func newQueue(blockCacheLimit int, thresholdInitialSize int) *queue {
 }
 
 // Reset clears out the queue contents.
-func (q *queue) Reset(blockCacheLimit int, thresholdInitialSize int) {
+func (q *queue) Reset(blockCacheLimit, thresholdInitialSize int) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
@@ -482,7 +482,8 @@ func (q *queue) ReserveReceipts(p *peerConnection, count int) (*fetchRequest, bo
 //	progress - whether any progress was made
 //	throttle - if the caller should throttle for a while
 func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common.Hash]*types.Header, taskQueue *prque.Prque[int64, *types.Header],
-	pendPool map[string]*fetchRequest, kind uint) (*fetchRequest, bool, bool) {
+	pendPool map[string]*fetchRequest, kind uint,
+) (*fetchRequest, bool, bool) {
 	// Short circuit if the pool has been depleted, or if the peer's already
 	// downloading something (sanity check not to corrupt state)
 	if taskQueue.Empty() {
@@ -833,7 +834,8 @@ func (q *queue) DeliverReceipts(id string, receiptList [][]*types.Receipt) (int,
 func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	taskQueue *prque.Prque[int64, *types.Header], pendPool map[string]*fetchRequest, reqTimer metrics.Timer,
 	results int, validate func(index int, header *types.Header) error,
-	reconstruct func(index int, result *fetchResult)) (int, error) {
+	reconstruct func(index int, result *fetchResult),
+) (int, error) {
 	// Short circuit if the data was never requested
 	request := pendPool[id]
 	if request == nil {

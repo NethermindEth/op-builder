@@ -166,7 +166,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
-	var dbVer = "<nil>"
+	dbVer := "<nil>"
 	if bcVersion != nil {
 		dbVer = fmt.Sprintf("%d", *bcVersion)
 	}

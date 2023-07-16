@@ -407,7 +407,7 @@ func (s *remoteSealer) sendNotification(ctx context.Context, url string, json []
 // submitWork verifies the submitted pow solution, returning
 // whether the solution was accepted or not (not can be both a bad pow as well as
 // any other error, like no pending work or stale mining result).
-func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash, sealhash common.Hash) bool {
+func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest, sealhash common.Hash) bool {
 	if s.currentBlock == nil {
 		s.ethash.config.Log.Error("Pending work without block", "sealhash", sealhash)
 		return false

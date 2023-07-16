@@ -98,7 +98,7 @@ func testCapacityAPI(t *testing.T, clientCount int) {
 	if testServerDataDir == "" {
 		return
 	}
-	for !testSim(t, 1, clientCount, []string{testServerDataDir}, nil, func(ctx context.Context, net *simulations.Network, servers []*simulations.Node, clients []*simulations.Node) bool {
+	for !testSim(t, 1, clientCount, []string{testServerDataDir}, nil, func(ctx context.Context, net *simulations.Network, servers, clients []*simulations.Node) bool {
 		if len(servers) != 1 {
 			t.Fatalf("Invalid number of servers: %d", len(servers))
 		}
@@ -439,7 +439,7 @@ func NewAdapter(adapterType string, services adapters.LifecycleConstructors) (ad
 	return adapter, teardown, nil
 }
 
-func testSim(t *testing.T, serverCount, clientCount int, serverDir, clientDir []string, test func(ctx context.Context, net *simulations.Network, servers []*simulations.Node, clients []*simulations.Node) bool) bool {
+func testSim(t *testing.T, serverCount, clientCount int, serverDir, clientDir []string, test func(ctx context.Context, net *simulations.Network, servers, clients []*simulations.Node) bool) bool {
 	net, teardown, err := NewNetwork()
 	defer teardown()
 	if err != nil {

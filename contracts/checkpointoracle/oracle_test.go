@@ -70,7 +70,8 @@ var (
 // validateOperation executes the operation, watches and delivers all events fired by the backend and ensures the
 // correctness by assert function.
 func validateOperation(t *testing.T, c *contract.CheckpointOracle, backend *backends.SimulatedBackend, operation func(),
-	assert func(<-chan *contract.CheckpointOracleNewCheckpointVote) error, opName string) {
+	assert func(<-chan *contract.CheckpointOracleNewCheckpointVote) error, opName string,
+) {
 	// Watch all events and deliver them to assert function
 	var (
 		sink   = make(chan *contract.CheckpointOracleNewCheckpointVote)
@@ -141,7 +142,7 @@ func signCheckpoint(addr common.Address, privateKey *ecdsa.PrivateKey, index uin
 }
 
 // assertSignature verifies whether the recovered signers are equal with expected.
-func assertSignature(addr common.Address, index uint64, hash [32]byte, r, s [32]byte, v uint8, expect common.Address) bool {
+func assertSignature(addr common.Address, index uint64, hash, r, s [32]byte, v uint8, expect common.Address) bool {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, index)
 	data := append([]byte{0x19, 0x00}, append(addr.Bytes(), append(buf, hash[:]...)...)...)
@@ -200,7 +201,7 @@ func TestCheckpointRegister(t *testing.T) {
 		return parentNumber, parentHash
 	}
 	// collectSig generates specified number signatures.
-	collectSig := func(index uint64, hash common.Hash, n int, unauthorized *ecdsa.PrivateKey) (v []uint8, r [][32]byte, s [][32]byte) {
+	collectSig := func(index uint64, hash common.Hash, n int, unauthorized *ecdsa.PrivateKey) (v []uint8, r, s [][32]byte) {
 		for i := 0; i < n; i++ {
 			sig := signCheckpoint(contractAddr, accounts[i].key, index, hash)
 			if unauthorized != nil {

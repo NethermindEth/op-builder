@@ -7,8 +7,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -20,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/require"
 )
 
 const GasLimit uint64 = 30000000
@@ -130,7 +129,7 @@ func simulateBundle(env *environment, bundle types.MevBundle, chData chainData, 
 	}, nil
 }
 
-func (sig signerList) signTx(i int, gas uint64, gasTipCap *big.Int, gasFeeCap *big.Int, to common.Address, value *big.Int, data []byte) *types.Transaction {
+func (sig signerList) signTx(i int, gas uint64, gasTipCap, gasFeeCap *big.Int, to common.Address, value *big.Int, data []byte) *types.Transaction {
 	txData := &types.DynamicFeeTx{
 		ChainID:   sig.config.ChainID,
 		Nonce:     sig.nonces[i],

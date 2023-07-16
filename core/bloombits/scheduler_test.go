@@ -32,7 +32,7 @@ func TestSchedulerSingleClientMultiFetcher(t *testing.T)  { testScheduler(t, 1, 
 func TestSchedulerMultiClientSingleFetcher(t *testing.T)  { testScheduler(t, 10, 1, 5000) }
 func TestSchedulerMultiClientMultiFetcher(t *testing.T)   { testScheduler(t, 10, 10, 5000) }
 
-func testScheduler(t *testing.T, clients int, fetchers int, requests int) {
+func testScheduler(t *testing.T, clients, fetchers, requests int) {
 	t.Parallel()
 	f := newScheduler(0)
 

@@ -87,7 +87,7 @@ type TerminalStringer interface {
 func TerminalFormat(usecolor bool) Format {
 	return FormatFunc(func(r *Record) []byte {
 		msg := escapeMessage(r.Msg)
-		var color = 0
+		color := 0
 		if usecolor {
 			switch r.Lvl {
 			case LvlCrit:

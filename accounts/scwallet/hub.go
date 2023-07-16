@@ -112,7 +112,7 @@ func (hub *Hub) readPairings() error {
 }
 
 func (hub *Hub) writePairings() error {
-	pairingFile, err := os.OpenFile(filepath.Join(hub.datadir, "smartcards.json"), os.O_RDWR|os.O_CREATE, 0755)
+	pairingFile, err := os.OpenFile(filepath.Join(hub.datadir, "smartcards.json"), os.O_RDWR|os.O_CREATE, 0o755)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (hub *Hub) setPairing(wallet *Wallet, pairing *smartcardPairing) error {
 }
 
 // NewHub creates a new hardware wallet manager for smartcards.
-func NewHub(daemonPath string, scheme string, datadir string) (*Hub, error) {
+func NewHub(daemonPath, scheme, datadir string) (*Hub, error) {
 	context, err := pcsc.EstablishContext(daemonPath, pcsc.ScopeSystem)
 	if err != nil {
 		return nil, err

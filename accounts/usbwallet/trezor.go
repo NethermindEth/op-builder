@@ -185,7 +185,7 @@ func (w *trezorDriver) SignTx(path accounts.DerivationPath, tx *types.Transactio
 	return w.trezorSign(path, tx, chainID)
 }
 
-func (w *trezorDriver) SignTypedMessage(path accounts.DerivationPath, domainHash []byte, messageHash []byte) ([]byte, error) {
+func (w *trezorDriver) SignTypedMessage(path accounts.DerivationPath, domainHash, messageHash []byte) ([]byte, error) {
 	return nil, accounts.ErrNotSupported
 }
 

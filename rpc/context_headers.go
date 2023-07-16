@@ -48,7 +48,7 @@ func headersFromContext(ctx context.Context) http.Header {
 }
 
 // setHeaders sets all headers from src in dst.
-func setHeaders(dst http.Header, src http.Header) http.Header {
+func setHeaders(dst, src http.Header) http.Header {
 	for key, values := range src {
 		dst[http.CanonicalHeaderKey(key)] = values
 	}

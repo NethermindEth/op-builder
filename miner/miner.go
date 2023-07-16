@@ -50,7 +50,7 @@ type Backend interface {
 	TxPool() *txpool.TxPool
 }
 type BackendWithHistoricalState interface {
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
 }
 
 type AlgoType int

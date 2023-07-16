@@ -93,16 +93,16 @@ func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent)
 	return bc.chainHeadFeed.Subscribe(ch)
 }
 
-func transaction(nonce uint64, gaslimit uint64, key *ecdsa.PrivateKey) *types.Transaction {
+func transaction(nonce, gaslimit uint64, key *ecdsa.PrivateKey) *types.Transaction {
 	return pricedTransaction(nonce, gaslimit, big.NewInt(1), key)
 }
 
-func pricedTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
+func pricedTransaction(nonce, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
 	tx, _ := types.SignTx(types.NewTransaction(nonce, common.Address{}, big.NewInt(100), gaslimit, gasprice, nil), types.HomesteadSigner{}, key)
 	return tx
 }
 
-func pricedDataTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey, bytes uint64) *types.Transaction {
+func pricedDataTransaction(nonce, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey, bytes uint64) *types.Transaction {
 	data := make([]byte, bytes)
 	crand.Read(data)
 
@@ -110,7 +110,7 @@ func pricedDataTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key
 	return tx
 }
 
-func dynamicFeeTx(nonce uint64, gaslimit uint64, gasFee *big.Int, tip *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
+func dynamicFeeTx(nonce, gaslimit uint64, gasFee, tip *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
 	tx, _ := types.SignNewTx(key, types.LatestSignerForChainID(params.TestChainConfig.ChainID), &types.DynamicFeeTx{
 		ChainID:    params.TestChainConfig.ChainID,
 		Nonce:      nonce,
@@ -2266,7 +2266,7 @@ func TestJournalingNoLocals(t *testing.T) { testJournaling(t, true, false) }
 func TestJournalingRemotes(t *testing.T)         { testJournaling(t, false, true) }
 func TestJournalingRemotesNoLocals(t *testing.T) { testJournaling(t, true, true) }
 
-func testJournaling(t *testing.T, nolocals bool, journalRemotes bool) {
+func testJournaling(t *testing.T, nolocals, journalRemotes bool) {
 	t.Parallel()
 
 	// Create a temporary file for the journal

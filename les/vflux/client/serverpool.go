@@ -221,7 +221,8 @@ func (s *serverPoolIterator) Close() {
 // AddMetrics adds metrics to the server pool. Should be called before Start().
 func (s *ServerPool) AddMetrics(
 	suggestedTimeoutGauge, totalValueGauge, serverSelectableGauge, serverConnectedGauge metrics.Gauge,
-	sessionValueMeter, serverDialedMeter metrics.Meter) {
+	sessionValueMeter, serverDialedMeter metrics.Meter,
+) {
 	s.suggestedTimeoutGauge = suggestedTimeoutGauge
 	s.totalValueGauge = totalValueGauge
 	s.sessionValueMeter = sessionValueMeter

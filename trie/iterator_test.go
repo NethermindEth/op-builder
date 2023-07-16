@@ -410,6 +410,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 func TestIteratorContinueAfterSeekErrorDisk(t *testing.T) {
 	testIteratorContinueAfterSeekError(t, false)
 }
+
 func TestIteratorContinueAfterSeekErrorMemonly(t *testing.T) {
 	testIteratorContinueAfterSeekError(t, true)
 }
@@ -489,7 +490,7 @@ func (l *loggingDb) Get(key []byte) ([]byte, error) {
 	return l.backend.Get(key)
 }
 
-func (l *loggingDb) Put(key []byte, value []byte) error {
+func (l *loggingDb) Put(key, value []byte) error {
 	return l.backend.Put(key, value)
 }
 
@@ -505,7 +506,7 @@ func (l *loggingDb) NewBatchWithSize(size int) ethdb.Batch {
 	return l.backend.NewBatchWithSize(size)
 }
 
-func (l *loggingDb) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
+func (l *loggingDb) NewIterator(prefix, start []byte) ethdb.Iterator {
 	return l.backend.NewIterator(prefix, start)
 }
 
@@ -517,7 +518,7 @@ func (l *loggingDb) Stat(property string) (string, error) {
 	return l.backend.Stat(property)
 }
 
-func (l *loggingDb) Compact(start []byte, limit []byte) error {
+func (l *loggingDb) Compact(start, limit []byte) error {
 	return l.backend.Compact(start, limit)
 }
 

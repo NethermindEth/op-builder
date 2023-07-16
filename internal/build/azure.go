@@ -38,7 +38,7 @@ type AzureBlobstoreConfig struct {
 // need a multi API call approach implemented.
 //
 // See: https://msdn.microsoft.com/en-us/library/azure/dd179451.aspx#Anchor_3
-func AzureBlobstoreUpload(path string, name string, config AzureBlobstoreConfig) error {
+func AzureBlobstoreUpload(path, name string, config AzureBlobstoreConfig) error {
 	if *DryRunFlag {
 		fmt.Printf("would upload %q to %s/%s/%s\n", path, config.Account, config.Container, name)
 		return nil

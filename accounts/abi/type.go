@@ -61,13 +61,11 @@ type Type struct {
 	TupleType     reflect.Type // Underlying struct of the tuple
 }
 
-var (
-	// typeRegex parses the abi sub types
-	typeRegex = regexp.MustCompile("([a-zA-Z]+)(([0-9]+)(x([0-9]+))?)?")
-)
+// typeRegex parses the abi sub types
+var typeRegex = regexp.MustCompile("([a-zA-Z]+)(([0-9]+)(x([0-9]+))?)?")
 
 // NewType creates a new reflection type of abi type given in t.
-func NewType(t string, internalType string, components []ArgumentMarshaling) (typ Type, err error) {
+func NewType(t, internalType string, components []ArgumentMarshaling) (typ Type, err error) {
 	// check that array brackets are equal if they exist
 	if strings.Count(t, "[") != strings.Count(t, "]") {
 		return Type{}, fmt.Errorf("invalid arg type in abi")

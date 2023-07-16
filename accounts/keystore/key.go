@@ -49,7 +49,7 @@ type Key struct {
 
 type keyStore interface {
 	// Loads and decrypts the key from disk.
-	GetKey(addr common.Address, filename string, auth string) (*Key, error)
+	GetKey(addr common.Address, filename, auth string) (*Key, error)
 	// Writes and encrypts the key.
 	StoreKey(filename string, k *Key, auth string) error
 	// Joins filename with the key directory unless it is already absolute.
@@ -190,7 +190,7 @@ func storeNewKey(ks keyStore, rand io.Reader, auth string) (*Key, accounts.Accou
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 	// Create the keystore directory with appropriate permissions
 	// in case it is not present yet.
-	const dirPerm = 0700
+	const dirPerm = 0o700
 	if err := os.MkdirAll(filepath.Dir(file), dirPerm); err != nil {
 		return "", err
 	}

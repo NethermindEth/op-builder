@@ -81,7 +81,7 @@ func isKeyWord(arg string) bool {
 // to be used as is in client code, but rather as an intermediate struct which
 // enforces compile time type safety and naming convention opposed to having to
 // manually maintain hard coded strings that break on runtime.
-func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]string, pkg string, lang Lang, libs map[string]string, aliases map[string]string) (string, error) {
+func Bind(types, abis, bytecodes []string, fsigs []map[string]string, pkg string, lang Lang, libs, aliases map[string]string) (string, error) {
 	var (
 		// contracts is the map of each individual contract requested binding
 		contracts = make(map[string]*tmplContract)
@@ -135,7 +135,7 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 			normalizedName := methodNormalizer[lang](alias(aliases, original.Name))
 
 			// Ensure there is no duplicated identifier
-			var identifiers = callIdentifiers
+			identifiers := callIdentifiers
 			if !original.IsConstant() {
 				identifiers = transactIdentifiers
 			}

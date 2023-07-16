@@ -88,10 +88,10 @@ func (db *ChecksumDB) DownloadFile(url, dstPath string) error {
 		return fmt.Errorf("download error: status %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
 		return err
 	}
-	fd, err := os.OpenFile(dstPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	fd, err := os.OpenFile(dstPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

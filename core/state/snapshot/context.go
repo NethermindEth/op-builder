@@ -96,7 +96,7 @@ type generatorContext struct {
 }
 
 // newGeneratorContext initializes the context for generation.
-func newGeneratorContext(stats *generatorStats, db ethdb.KeyValueStore, accMarker []byte, storageMarker []byte) *generatorContext {
+func newGeneratorContext(stats *generatorStats, db ethdb.KeyValueStore, accMarker, storageMarker []byte) *generatorContext {
 	ctx := &generatorContext{
 		stats:  stats,
 		db:     db,
@@ -126,7 +126,7 @@ func (ctx *generatorContext) openIterator(kind string, start []byte) {
 func (ctx *generatorContext) reopenIterator(kind string) {
 	// Shift iterator one more step, so that we can reopen
 	// the iterator at the right position.
-	var iter = ctx.account
+	iter := ctx.account
 	if kind == snapStorage {
 		iter = ctx.storage
 	}

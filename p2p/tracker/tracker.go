@@ -83,7 +83,7 @@ func New(protocol string, timeout time.Duration) *Tracker {
 
 // Track adds a network request to the tracker to wait for a response to arrive
 // or until the request it cancelled or times out.
-func (t *Tracker) Track(peer string, version uint, reqCode uint64, resCode uint64, id uint64) {
+func (t *Tracker) Track(peer string, version uint, reqCode, resCode, id uint64) {
 	if !metrics.Enabled {
 		return
 	}
@@ -162,7 +162,7 @@ func (t *Tracker) schedule() {
 }
 
 // Fulfil fills a pending request, if any is available, reporting on various metrics.
-func (t *Tracker) Fulfil(peer string, version uint, code uint64, id uint64) {
+func (t *Tracker) Fulfil(peer string, version uint, code, id uint64) {
 	if !metrics.Enabled {
 		return
 	}

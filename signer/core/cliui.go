@@ -254,7 +254,7 @@ func (ui *CommandlineUI) showAccounts() {
 		return
 	}
 	var msg string
-	var out = new(strings.Builder)
+	out := new(strings.Builder)
 	if limit := 20; len(accounts) > limit {
 		msg = fmt.Sprintf("\nFirst %d accounts listed (%d more available).\n", limit, len(accounts)-limit)
 		accounts = accounts[:limit]

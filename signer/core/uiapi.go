@@ -94,7 +94,7 @@ func (s *UIServerAPI) ListWallets() []rawWallet {
 // it for later reuse.
 // Example call
 // {"jsonrpc":"2.0","method":"clef_deriveAccount","params":["ledger://","m/44'/60'/0'", false], "id":6}
-func (s *UIServerAPI) DeriveAccount(url string, path string, pin *bool) (accounts.Account, error) {
+func (s *UIServerAPI) DeriveAccount(url, path string, pin *bool) (accounts.Account, error) {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return accounts.Account{}, err
@@ -118,7 +118,7 @@ func fetchKeystore(am *accounts.Manager) *keystore.KeyStore {
 // encrypting it with the passphrase.
 // Example call (should fail on password too short)
 // {"jsonrpc":"2.0","method":"clef_importRawKey","params":["1111111111111111111111111111111111111111111111111111111111111111","test"], "id":6}
-func (s *UIServerAPI) ImportRawKey(privkey string, password string) (accounts.Account, error) {
+func (s *UIServerAPI) ImportRawKey(privkey, password string) (accounts.Account, error) {
 	key, err := crypto.HexToECDSA(privkey)
 	if err != nil {
 		return accounts.Account{}, err

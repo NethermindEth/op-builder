@@ -595,7 +595,7 @@ func DefaultSepoliaGenesisBlock() *Genesis {
 }
 
 // DeveloperGenesisBlock returns the 'geth --dev' genesis block.
-func DeveloperGenesisBlock(period uint64, gasLimit uint64, faucet common.Address) *Genesis {
+func DeveloperGenesisBlock(period, gasLimit uint64, faucet common.Address) *Genesis {
 	// Override the default period to the user requested one
 	config := *params.AllCliqueProtocolChanges
 	config.Clique = &params.CliqueConfig{

@@ -55,7 +55,7 @@ func (s *Suite) sendSuccessfulTxs(t *utesting.T) error {
 	return nil
 }
 
-func sendSuccessfulTx(s *Suite, tx *types.Transaction, prevTx *types.Transaction) error {
+func sendSuccessfulTx(s *Suite, tx, prevTx *types.Transaction) error {
 	sendConn, recvConn, err := s.createSendAndRecvConns()
 	if err != nil {
 		return err
@@ -298,7 +298,7 @@ func checkMaliciousTxPropagation(s *Suite, txs []*types.Transaction, conn *Conn)
 // compareReceivedTxs compares the received set of txs against the given set of txs,
 // returning both the set received txs that were present within the given txs, and
 // the set of txs that were missing from the set of received txs
-func compareReceivedTxs(recvTxs []common.Hash, txs []*types.Transaction) (present []*types.Transaction, missing []*types.Transaction) {
+func compareReceivedTxs(recvTxs []common.Hash, txs []*types.Transaction) (present, missing []*types.Transaction) {
 	// create a map of the hashes received from node
 	recvHashes := make(map[common.Hash]common.Hash)
 	for _, hash := range recvTxs {
@@ -366,7 +366,7 @@ func generateTxs(s *Suite, numTxs int) (map[common.Hash]common.Hash, []*types.Tr
 	return txHashMap, txs, nil
 }
 
-func generateTx(chainConfig *params.ChainConfig, nonce uint64, gas uint64) *types.Transaction {
+func generateTx(chainConfig *params.ChainConfig, nonce, gas uint64) *types.Transaction {
 	var to common.Address
 	tx := types.NewTransaction(nonce, to, big.NewInt(1), gas, big.NewInt(1), []byte{})
 	return signWithFaucet(chainConfig, tx)

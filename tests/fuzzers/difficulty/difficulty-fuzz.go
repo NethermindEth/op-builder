@@ -62,6 +62,7 @@ func (f *fuzzer) readUint64(min, max uint64) uint64 {
 	a = min + a%(max-min)
 	return a
 }
+
 func (f *fuzzer) readBool() bool {
 	return f.read(1)[0]&0x1 == 0
 }
@@ -113,9 +114,9 @@ func (f *fuzzer) fuzz() int {
 	var time uint64
 	{
 		childTime := f.readUint64(1, 0xFFFFFFFFFFFFFFFF)
-		//fmt.Printf("childTime: %x\n",childTime)
+		// fmt.Printf("childTime: %x\n",childTime)
 		delta := f.readUint64(1, childTime)
-		//fmt.Printf("delta: %v\n", delta)
+		// fmt.Printf("delta: %v\n", delta)
 		pTime := childTime - delta
 		header.Time = pTime
 		time = childTime

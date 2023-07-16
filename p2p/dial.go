@@ -222,9 +222,7 @@ func (d *dialScheduler) peerRemoved(c *conn) {
 
 // loop is the main loop of the dialer.
 func (d *dialScheduler) loop(it enode.Iterator) {
-	var (
-		nodesCh chan *enode.Node
-	)
+	var nodesCh chan *enode.Node
 
 loop:
 	for {

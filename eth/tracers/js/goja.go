@@ -23,7 +23,6 @@ import (
 	"math/big"
 
 	"github.com/dop251/goja"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -61,16 +60,18 @@ func init() {
 // hex strings into big ints.
 var bigIntProgram = goja.MustCompile("bigInt", bigIntegerJS, false)
 
-type toBigFn = func(vm *goja.Runtime, val string) (goja.Value, error)
-type toBufFn = func(vm *goja.Runtime, val []byte) (goja.Value, error)
-type fromBufFn = func(vm *goja.Runtime, buf goja.Value, allowString bool) ([]byte, error)
+type (
+	toBigFn   = func(vm *goja.Runtime, val string) (goja.Value, error)
+	toBufFn   = func(vm *goja.Runtime, val []byte) (goja.Value, error)
+	fromBufFn = func(vm *goja.Runtime, buf goja.Value, allowString bool) ([]byte, error)
+)
 
 func toBuf(vm *goja.Runtime, bufType goja.Value, val []byte) (goja.Value, error) {
 	// bufType is usually Uint8Array. This is equivalent to `new Uint8Array(val)` in JS.
 	return vm.New(bufType, vm.ToValue(vm.NewArrayBuffer(val)))
 }
 
-func fromBuf(vm *goja.Runtime, bufType goja.Value, buf goja.Value, allowString bool) ([]byte, error) {
+func fromBuf(vm *goja.Runtime, bufType, buf goja.Value, allowString bool) ([]byte, error) {
 	obj := buf.ToObject(vm)
 	switch obj.ClassName() {
 	case "String":
@@ -227,7 +228,7 @@ func (t *jsTracer) CaptureTxEnd(restGas uint64) {
 }
 
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
-func (t *jsTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (t *jsTracer) CaptureStart(env *vm.EVM, from, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	t.env = env
 	db := &dbObj{db: env.StateDB, vm: t.vm, toBig: t.toBig, toBuf: t.toBuf, fromBuf: t.fromBuf}
 	t.dbValue = db.setupObject()
@@ -299,7 +300,7 @@ func (t *jsTracer) CaptureEnd(output []byte, gasUsed uint64, err error) {
 }
 
 // CaptureEnter is called when EVM enters a new scope (via call, create or selfdestruct).
-func (t *jsTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+func (t *jsTracer) CaptureEnter(typ vm.OpCode, from, to common.Address, input []byte, gas uint64, value *big.Int) {
 	if !t.traceFrame {
 		return
 	}
@@ -705,7 +706,7 @@ func (do *dbObj) GetCode(addrSlice goja.Value) goja.Value {
 	return res
 }
 
-func (do *dbObj) GetState(addrSlice goja.Value, hashSlice goja.Value) goja.Value {
+func (do *dbObj) GetState(addrSlice, hashSlice goja.Value) goja.Value {
 	a, err := do.fromBuf(do.vm, addrSlice, false)
 	if err != nil {
 		do.vm.Interrupt(err)

@@ -56,7 +56,7 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
-func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
+func (h *hasher) hash(n node, force bool) (hashed, cached node) {
 	// Return the cached hash if it's available
 	if hash, _ := n.cache(); hash != nil {
 		return hash, n
@@ -97,7 +97,7 @@ func (h *hasher) hashShortNodeChildren(n *shortNode) (collapsed, cached *shortNo
 	collapsed, cached = n.copy(), n.copy()
 	// Previously, we did copy this one. We don't seem to need to actually
 	// do that, since we don't overwrite/reuse keys
-	//cached.Key = common.CopyBytes(n.Key)
+	// cached.Key = common.CopyBytes(n.Key)
 	collapsed.Key = hexToCompact(n.Key)
 	// Unless the child is a valuenode or hashnode, hash it
 	switch n.Val.(type) {
@@ -107,7 +107,7 @@ func (h *hasher) hashShortNodeChildren(n *shortNode) (collapsed, cached *shortNo
 	return collapsed, cached
 }
 
-func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached *fullNode) {
+func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed, cached *fullNode) {
 	// Hash the full node's children, caching the newly hashed subtrees
 	cached = n.copy()
 	collapsed = n.copy()

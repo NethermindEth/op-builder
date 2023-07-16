@@ -95,7 +95,6 @@ func GenerateTrie(snaptree *Tree, root common.Hash, src ethdb.Database, dst ethd
 		}
 		return hash, nil
 	}, newGenerateStats(), true)
-
 	if err != nil {
 		return err
 	}
@@ -147,7 +146,7 @@ func (stat *generateStats) finishAccounts(done uint64) {
 }
 
 // progressContract updates the generator stats for a specific in-progress contract.
-func (stat *generateStats) progressContract(account common.Hash, slot common.Hash, done uint64) {
+func (stat *generateStats) progressContract(account, slot common.Hash, done uint64) {
 	stat.lock.Lock()
 	defer stat.lock.Unlock()
 

@@ -36,7 +36,7 @@ func StateTrieID(root common.Hash) *ID {
 
 // StorageTrieID constructs an identifier for storage trie which belongs to a certain
 // state and contract specified by the stateRoot and owner.
-func StorageTrieID(stateRoot common.Hash, owner common.Hash, root common.Hash) *ID {
+func StorageTrieID(stateRoot, owner, root common.Hash) *ID {
 	return &ID{
 		StateRoot: stateRoot,
 		Owner:     owner,

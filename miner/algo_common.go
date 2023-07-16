@@ -292,7 +292,6 @@ func (envDiff *environmentDiff) commitBundle(bundle *types.SimulatedBundle, chDa
 		}
 
 		receipt, _, err := tmpEnvDiff.commitTx(tx, chData)
-
 		if err != nil {
 			log.Trace("Bundle tx error", "bundle", bundle.OriginalBundle.Hash, "tx", tx.Hash(), "err", err)
 			return err

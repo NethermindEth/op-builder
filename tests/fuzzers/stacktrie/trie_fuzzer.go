@@ -64,17 +64,17 @@ type spongeDb struct {
 	debug  bool
 }
 
-func (s *spongeDb) Has(key []byte) (bool, error)             { panic("implement me") }
-func (s *spongeDb) Get(key []byte) ([]byte, error)           { return nil, errors.New("no such elem") }
-func (s *spongeDb) Delete(key []byte) error                  { panic("implement me") }
-func (s *spongeDb) NewBatch() ethdb.Batch                    { return &spongeBatch{s} }
-func (s *spongeDb) NewBatchWithSize(size int) ethdb.Batch    { return &spongeBatch{s} }
-func (s *spongeDb) NewSnapshot() (ethdb.Snapshot, error)     { panic("implement me") }
-func (s *spongeDb) Stat(property string) (string, error)     { panic("implement me") }
-func (s *spongeDb) Compact(start []byte, limit []byte) error { panic("implement me") }
-func (s *spongeDb) Close() error                             { return nil }
+func (s *spongeDb) Has(key []byte) (bool, error)          { panic("implement me") }
+func (s *spongeDb) Get(key []byte) ([]byte, error)        { return nil, errors.New("no such elem") }
+func (s *spongeDb) Delete(key []byte) error               { panic("implement me") }
+func (s *spongeDb) NewBatch() ethdb.Batch                 { return &spongeBatch{s} }
+func (s *spongeDb) NewBatchWithSize(size int) ethdb.Batch { return &spongeBatch{s} }
+func (s *spongeDb) NewSnapshot() (ethdb.Snapshot, error)  { panic("implement me") }
+func (s *spongeDb) Stat(property string) (string, error)  { panic("implement me") }
+func (s *spongeDb) Compact(start, limit []byte) error     { panic("implement me") }
+func (s *spongeDb) Close() error                          { return nil }
 
-func (s *spongeDb) Put(key []byte, value []byte) error {
+func (s *spongeDb) Put(key, value []byte) error {
 	if s.debug {
 		fmt.Printf("db.Put %x : %x\n", key, value)
 	}
@@ -82,7 +82,7 @@ func (s *spongeDb) Put(key []byte, value []byte) error {
 	s.sponge.Write(value)
 	return nil
 }
-func (s *spongeDb) NewIterator(prefix []byte, start []byte) ethdb.Iterator { panic("implement me") }
+func (s *spongeDb) NewIterator(prefix, start []byte) ethdb.Iterator { panic("implement me") }
 
 // spongeBatch is a dummy batch which immediately writes to the underlying spongedb
 type spongeBatch struct {

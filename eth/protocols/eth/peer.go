@@ -371,7 +371,7 @@ func (p *Peer) RequestOneHeader(hash common.Hash, sink chan *Response) (*Request
 
 // RequestHeadersByHash fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the hash of an origin block.
-func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool, sink chan *Response) (*Request, error) {
+func (p *Peer) RequestHeadersByHash(origin common.Hash, amount, skip int, reverse bool, sink chan *Response) (*Request, error) {
 	p.Log().Debug("Fetching batch of headers", "count", amount, "fromhash", origin, "skip", skip, "reverse", reverse)
 	id := rand.Uint64()
 
@@ -398,7 +398,7 @@ func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, re
 
 // RequestHeadersByNumber fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the number of an origin block.
-func (p *Peer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool, sink chan *Response) (*Request, error) {
+func (p *Peer) RequestHeadersByNumber(origin uint64, amount, skip int, reverse bool, sink chan *Response) (*Request, error) {
 	p.Log().Debug("Fetching batch of headers", "count", amount, "fromnum", origin, "skip", skip, "reverse", reverse)
 	id := rand.Uint64()
 

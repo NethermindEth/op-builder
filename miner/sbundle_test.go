@@ -123,7 +123,7 @@ func generateTests() {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(os.Getenv("DUMP_SBUNDLE_TEST_PATH"), jsonBytes, 0644)
+		err = os.WriteFile(os.Getenv("DUMP_SBUNDLE_TEST_PATH"), jsonBytes, 0o644)
 		if err != nil {
 			panic(err)
 		}

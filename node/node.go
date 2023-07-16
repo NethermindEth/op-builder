@@ -315,7 +315,7 @@ func (n *Node) openDataDir() error {
 	}
 
 	instdir := filepath.Join(n.config.DataDir, n.config.name())
-	if err := os.MkdirAll(instdir, 0700); err != nil {
+	if err := os.MkdirAll(instdir, 0o700); err != nil {
 		return err
 	}
 	// Lock the instance directory to prevent concurrent use by another instance as well as
@@ -365,7 +365,7 @@ func (n *Node) obtainJWTSecret(cliParam string) ([]byte, error) {
 		log.Info("Generated ephemeral JWT secret", "secret", hexutil.Encode(jwtSecret))
 		return jwtSecret, nil
 	}
-	if err := os.WriteFile(fileName, []byte(hexutil.Encode(jwtSecret)), 0600); err != nil {
+	if err := os.WriteFile(fileName, []byte(hexutil.Encode(jwtSecret)), 0o600); err != nil {
 		return nil, err
 	}
 	log.Info("Generated JWT secret", "path", fileName)
@@ -730,7 +730,7 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 // also attaching a chain freezer to it that moves ancient chain data from the
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
-func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient string, namespace string, readonly bool) (ethdb.Database, error) {
+func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient, namespace string, readonly bool) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if n.state == closedState {
@@ -764,7 +764,7 @@ func (n *Node) ResolvePath(x string) string {
 }
 
 // ResolveAncient returns the absolute path of the root ancient directory.
-func (n *Node) ResolveAncient(name string, ancient string) string {
+func (n *Node) ResolveAncient(name, ancient string) string {
 	switch {
 	case ancient == "":
 		ancient = filepath.Join(n.ResolvePath(name), "ancient")

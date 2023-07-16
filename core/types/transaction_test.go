@@ -497,7 +497,7 @@ func encodeDecodeJSON(tx *Transaction) (*Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("json encoding failed: %v", err)
 	}
-	var parsedTx = &Transaction{}
+	parsedTx := &Transaction{}
 	if err := json.Unmarshal(data, &parsedTx); err != nil {
 		return nil, fmt.Errorf("json decoding failed: %v", err)
 	}
@@ -509,14 +509,14 @@ func encodeDecodeBinary(tx *Transaction) (*Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("rlp encoding failed: %v", err)
 	}
-	var parsedTx = &Transaction{}
+	parsedTx := &Transaction{}
 	if err := parsedTx.UnmarshalBinary(data); err != nil {
 		return nil, fmt.Errorf("rlp decoding failed: %v", err)
 	}
 	return parsedTx, nil
 }
 
-func assertEqual(orig *Transaction, cpy *Transaction) error {
+func assertEqual(orig, cpy *Transaction) error {
 	// compare nonce, price, gaslimit, recipient, amount, payload, V, R, S
 	if want, got := orig.Hash(), cpy.Hash(); want != got {
 		return fmt.Errorf("parsed tx differs from original tx, want %v, got %v", want, got)
@@ -563,7 +563,8 @@ func TestTransactionSizes(t *testing.T) {
 				AccessTuple{
 					Address:     common.HexToAddress("0x01"),
 					StorageKeys: []common.Hash{common.HexToHash("0x01")},
-				}},
+				},
+			},
 		},
 		&DynamicFeeTx{
 			ChainID:   big.NewInt(123),

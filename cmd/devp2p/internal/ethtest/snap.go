@@ -303,7 +303,7 @@ type trieNodesTest struct {
 	expReject bool
 }
 
-func decodeNibbles(nibbles []byte, bytes []byte) {
+func decodeNibbles(nibbles, bytes []byte) {
 	for bi, ni := 0, 0; ni < len(nibbles); bi, ni = bi+1, ni+2 {
 		bytes[bi] = nibbles[ni]<<4 | nibbles[ni+1]
 	}
@@ -316,7 +316,7 @@ func hasTerm(s []byte) bool {
 
 func keybytesToHex(str []byte) []byte {
 	l := len(str)*2 + 1
-	var nibbles = make([]byte, l)
+	nibbles := make([]byte, l)
 	for i, b := range str {
 		nibbles[i*2] = b / 16
 		nibbles[i*2+1] = b % 16
@@ -382,14 +382,16 @@ func (s *Suite) TestSnapTrieNodes(t *utesting.T) {
 				{[]byte{1}, []byte{0}},
 			},
 			nBytes: 5000,
-			//0x6b3724a41b8c38b46d4d02fba2bb2074c47a507eb16a9a4b978f91d32e406faf
+			// 0x6b3724a41b8c38b46d4d02fba2bb2074c47a507eb16a9a4b978f91d32e406faf
 			expHashes: []common.Hash{s.chain.RootAt(999)},
 		},
 		{ // nonsensically long path
 			root: s.chain.RootAt(999),
 			paths: []snap.TrieNodePathSet{
-				{[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-					0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8}},
+				{[]byte{
+					0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+					0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+				}},
 			},
 			nBytes:    5000,
 			expHashes: []common.Hash{common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")},
@@ -418,7 +420,8 @@ func (s *Suite) TestSnapTrieNodes(t *utesting.T) {
 				empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty,
 				empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty,
 				empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty,
-				empty, empty, empty},
+				empty, empty, empty,
+			},
 		},
 		{
 			// Basically the same as above, with different ordering

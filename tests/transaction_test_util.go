@@ -45,7 +45,7 @@ type ttFork struct {
 }
 
 func (tt *TransactionTest) Run(config *params.ChainConfig) error {
-	validateTx := func(rlpData hexutil.Bytes, signer types.Signer, isHomestead bool, isIstanbul bool) (*common.Address, *common.Hash, error) {
+	validateTx := func(rlpData hexutil.Bytes, signer types.Signer, isHomestead, isIstanbul bool) (*common.Address, *common.Hash, error) {
 		tx := new(types.Transaction)
 		if err := rlp.DecodeBytes(rlpData, tx); err != nil {
 			return nil, nil, err

@@ -50,7 +50,7 @@ var testChainBase = newTestChain(blockCacheMaxItems+200, testGenesis)
 var testChainForkLightA, testChainForkLightB, testChainForkHeavy *testChain
 
 func init() {
-	var forkLen = int(fullMaxForkAncestry + 50)
+	forkLen := int(fullMaxForkAncestry + 50)
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() { testChainForkLightA = testChainBase.makeFork(forkLen, false, 1); wg.Done() }()
@@ -176,13 +176,13 @@ func (tc *testChain) td(hash common.Hash) *big.Int {
 }
 
 // headersByHash returns headers in order from the given hash.
-func (tc *testChain) headersByHash(origin common.Hash, amount int, skip int, reverse bool) []*types.Header {
+func (tc *testChain) headersByHash(origin common.Hash, amount, skip int, reverse bool) []*types.Header {
 	num, _ := tc.hashToNumber(origin)
 	return tc.headersByNumber(num, amount, skip, reverse)
 }
 
 // headersByNumber returns headers from the given number.
-func (tc *testChain) headersByNumber(origin uint64, amount int, skip int, reverse bool) []*types.Header {
+func (tc *testChain) headersByNumber(origin uint64, amount, skip int, reverse bool) []*types.Header {
 	result := make([]*types.Header, 0, amount)
 
 	if !reverse {

@@ -118,7 +118,7 @@ func (tm *testMatcher) skipLoad(pattern string) {
 // fails adds an expected failure for tests matching the pattern.
 //
 //nolint:unused
-func (tm *testMatcher) fails(pattern string, reason string) {
+func (tm *testMatcher) fails(pattern, reason string) {
 	if reason == "" {
 		panic("empty fail reason")
 	}

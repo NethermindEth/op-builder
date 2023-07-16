@@ -41,7 +41,7 @@ func TestLegacyCheckpointSyncingLes3(t *testing.T) { testCheckpointSyncing(t, lp
 // on a verified checkpoint.
 func TestCheckpointSyncingLes3(t *testing.T) { testCheckpointSyncing(t, lpv3, 2) }
 
-func testCheckpointSyncing(t *testing.T, protocol int, syncMode int) {
+func testCheckpointSyncing(t *testing.T, protocol, syncMode int) {
 	config := light.TestServerIndexerConfig
 
 	waitIndexers := func(cIndexer, bIndexer, btIndexer *core.ChainIndexer) {

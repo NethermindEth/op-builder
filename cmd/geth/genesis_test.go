@@ -79,7 +79,7 @@ func TestCustomGenesis(t *testing.T) {
 
 		// Initialize the data directory with the custom genesis block
 		json := filepath.Join(datadir, "genesis.json")
-		if err := os.WriteFile(json, []byte(tt.genesis), 0600); err != nil {
+		if err := os.WriteFile(json, []byte(tt.genesis), 0o600); err != nil {
 			t.Fatalf("test %d: failed to write genesis file: %v", i, err)
 		}
 		runGeth(t, "--datadir", datadir, "init", json).WaitExit()
@@ -125,7 +125,7 @@ func TestCustomBackend(t *testing.T) {
 
 		// Initialize the data directory with the custom genesis block
 		json := filepath.Join(datadir, "genesis.json")
-		if err := os.WriteFile(json, []byte(genesis), 0600); err != nil {
+		if err := os.WriteFile(json, []byte(genesis), 0o600); err != nil {
 			return fmt.Errorf("failed to write genesis file: %v", err)
 		}
 		{ // Init

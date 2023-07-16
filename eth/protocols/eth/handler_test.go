@@ -142,6 +142,7 @@ func (b *testBackend) PeerInfo(enode.ID) interface{} { panic("not implemented") 
 func (b *testBackend) AcceptTxs() bool {
 	panic("data processing tests should be done in the handler package")
 }
+
 func (b *testBackend) Handle(*Peer, Packet) error {
 	panic("data processing tests should be done in the handler package")
 }
@@ -195,7 +196,8 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 				backend.chain.GetBlockByNumber(limit/2 + 1).Hash(),
 				backend.chain.GetBlockByNumber(limit/2 + 2).Hash(),
 			},
-		}, {
+		},
+		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: limit / 2}, Amount: 3, Reverse: true},
 			[]common.Hash{
 				backend.chain.GetBlockByNumber(limit / 2).Hash(),
@@ -211,7 +213,8 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 				backend.chain.GetBlockByNumber(limit/2 + 4).Hash(),
 				backend.chain.GetBlockByNumber(limit/2 + 8).Hash(),
 			},
-		}, {
+		},
+		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: limit / 2}, Skip: 3, Amount: 3, Reverse: true},
 			[]common.Hash{
 				backend.chain.GetBlockByNumber(limit / 2).Hash(),
@@ -244,7 +247,8 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 				backend.chain.GetBlockByNumber(backend.chain.CurrentBlock().Number.Uint64() - 4).Hash(),
 				backend.chain.GetBlockByNumber(backend.chain.CurrentBlock().Number.Uint64()).Hash(),
 			},
-		}, {
+		},
+		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: 4}, Skip: 3, Amount: 3, Reverse: true},
 			[]common.Hash{
 				backend.chain.GetBlockByNumber(4).Hash(),
@@ -258,7 +262,8 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 				backend.chain.GetBlockByNumber(backend.chain.CurrentBlock().Number.Uint64() - 4).Hash(),
 				backend.chain.GetBlockByNumber(backend.chain.CurrentBlock().Number.Uint64() - 1).Hash(),
 			},
-		}, {
+		},
+		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: 4}, Skip: 2, Amount: 3, Reverse: true},
 			[]common.Hash{
 				backend.chain.GetBlockByNumber(4).Hash(),
@@ -292,7 +297,8 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Hash: unknown}, Amount: 1},
 			[]common.Hash{},
-		}, {
+		},
+		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().Number.Uint64() + 1}, Amount: 1},
 			[]common.Hash{},
 		},

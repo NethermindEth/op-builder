@@ -46,7 +46,7 @@ type upnpClient interface {
 	GetExternalIPAddress() (string, error)
 	AddPortMapping(string, uint16, string, uint16, string, bool, string, uint32) error
 	DeletePortMapping(string, uint16, string) error
-	GetNATRSIPStatus() (sip bool, nat bool, err error)
+	GetNATRSIPStatus() (sip, nat bool, err error)
 }
 
 func (n *upnp) natEnabled() bool {

@@ -275,7 +275,7 @@ func (op byteArrayOp) genWrite(ctx *genContext, v string) string {
 }
 
 func (op byteArrayOp) genDecode(ctx *genContext) (string, string) {
-	var resultV = ctx.temp()
+	resultV := ctx.temp()
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "var %s %s\n", resultV, types.TypeString(op.name, ctx.qualify))
@@ -317,7 +317,7 @@ func (op bigIntOp) genWrite(ctx *genContext, v string) string {
 }
 
 func (op bigIntOp) genDecode(ctx *genContext) (string, string) {
-	var resultV = ctx.temp()
+	resultV := ctx.temp()
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%s, err := dec.BigInt()\n", resultV)
@@ -388,7 +388,7 @@ func (op encoderDecoderOp) genWrite(ctx *genContext, v string) string {
 func (op encoderDecoderOp) genDecode(ctx *genContext) (string, string) {
 	// DecodeRLP must have pointer receiver, and this is verified in makeOp.
 	etyp := op.typ.(*types.Pointer).Elem()
-	var resultV = ctx.temp()
+	resultV := ctx.temp()
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%s := new(%s)\n", resultV, types.TypeString(etyp, ctx.qualify))
@@ -514,7 +514,7 @@ func (bctx *buildContext) makeStructOp(named *types.Named, typ *types.Struct) (o
 	}
 
 	// Create field ops.
-	var op = structOp{named: named, typ: typ}
+	op := structOp{named: named, typ: typ}
 	for i, field := range fields {
 		// Advanced struct tags are not supported yet.
 		tag := tags[i]
@@ -545,7 +545,7 @@ func checkUnsupportedTags(field string, tag rlpstruct.Tags) error {
 
 func (op structOp) genWrite(ctx *genContext, v string) string {
 	var b bytes.Buffer
-	var listMarker = ctx.temp()
+	listMarker := ctx.temp()
 	fmt.Fprintf(&b, "%s := w.List()\n", listMarker)
 	for _, field := range op.fields {
 		selector := v + "." + field.name
@@ -561,7 +561,7 @@ func (op structOp) writeOptionalFields(b *bytes.Buffer, ctx *genContext, v strin
 		return
 	}
 	// First check zero-ness of all optional fields.
-	var zeroV = make([]string, len(op.optionalFields))
+	zeroV := make([]string, len(op.optionalFields))
 	for i, field := range op.optionalFields {
 		selector := v + "." + field.name
 		zeroV[i] = ctx.temp()
@@ -595,7 +595,7 @@ func (op structOp) genDecode(ctx *genContext) (string, string) {
 	}
 
 	// Create struct object.
-	var resultV = ctx.temp()
+	resultV := ctx.temp()
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "var %s %s\n", resultV, typeName)
 
@@ -658,7 +658,7 @@ func (op sliceOp) genWrite(ctx *genContext, v string) string {
 }
 
 func (op sliceOp) genDecode(ctx *genContext) (string, string) {
-	var sliceV = ctx.temp() // holds the output slice
+	sliceV := ctx.temp() // holds the output slice
 	elemResult, elemCode := op.elemOp.genDecode(ctx)
 
 	var b bytes.Buffer

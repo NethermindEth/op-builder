@@ -31,7 +31,7 @@ type testReplayer struct {
 	dels [][]byte
 }
 
-func (r *testReplayer) Put(key []byte, value []byte) error {
+func (r *testReplayer) Put(key, value []byte) error {
 	r.puts = append(r.puts, key)
 	return nil
 }
@@ -44,7 +44,7 @@ func (r *testReplayer) Delete(key []byte) error {
 func testTableDatabase(t *testing.T, prefix string) {
 	db := NewTable(NewMemoryDatabase(), prefix)
 
-	var entries = []struct {
+	entries := []struct {
 		key   []byte
 		value []byte
 	}{

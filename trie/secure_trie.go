@@ -29,7 +29,7 @@ type SecureTrie = StateTrie
 
 // NewSecure creates a new StateTrie.
 // Deprecated: use NewStateTrie.
-func NewSecure(stateRoot common.Hash, owner common.Hash, root common.Hash, db *Database) (*SecureTrie, error) {
+func NewSecure(stateRoot, owner, root common.Hash, db *Database) (*SecureTrie, error) {
 	id := &ID{
 		StateRoot: stateRoot,
 		Owner:     owner,

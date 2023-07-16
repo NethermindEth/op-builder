@@ -75,7 +75,7 @@ func (api *SignerAPI) sign(req *SignDataRequest, legacyV bool) (hexutil.Bytes, e
 //
 // Different types of validation occur.
 func (api *SignerAPI) SignData(ctx context.Context, contentType string, addr common.MixedcaseAddress, data interface{}) (hexutil.Bytes, error) {
-	var req, transformV, err = api.determineSignatureFormat(ctx, contentType, addr, data)
+	req, transformV, err := api.determineSignatureFormat(ctx, contentType, addr, data)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,8 @@ func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAd
 // signTypedData is identical to the capitalized version, except that it also returns the hash (preimage)
 // - the signature preimage (hash)
 func (api *SignerAPI) signTypedData(ctx context.Context, addr common.MixedcaseAddress,
-	typedData apitypes.TypedData, validationMessages *apitypes.ValidationMessages) (hexutil.Bytes, hexutil.Bytes, error) {
+	typedData apitypes.TypedData, validationMessages *apitypes.ValidationMessages,
+) (hexutil.Bytes, hexutil.Bytes, error) {
 	req, err := typedDataRequest(typedData)
 	if err != nil {
 		return nil, nil, err
@@ -286,12 +287,13 @@ func typedDataRequest(data any) (*SignDataRequest, error) {
 		ContentType: apitypes.DataTyped.Mime,
 		Rawdata:     []byte(rawData),
 		Messages:    messages,
-		Hash:        sighash}, nil
+		Hash:        sighash,
+	}, nil
 }
 
 // EcRecover recovers the address associated with the given sig.
 // Only compatible with `text/plain`
-func (api *SignerAPI) EcRecover(ctx context.Context, data hexutil.Bytes, sig hexutil.Bytes) (common.Address, error) {
+func (api *SignerAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
 	// Returns the address for the Account that was used to create the signature.
 	//
 	// Note, this function is compatible with eth_sign and personal_sign. As such it recovers

@@ -318,7 +318,7 @@ func (cp *ClientPool) serveCapQuery(id enode.ID, freeID string, data []byte) []b
 }
 
 // Handle implements Service
-func (cp *ClientPool) Handle(id enode.ID, address string, name string, data []byte) []byte {
+func (cp *ClientPool) Handle(id enode.ID, address, name string, data []byte) []byte {
 	switch name {
 	case vflux.CapacityQueryName:
 		return cp.serveCapQuery(id, address, data)

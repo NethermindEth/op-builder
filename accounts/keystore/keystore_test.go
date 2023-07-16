@@ -49,8 +49,8 @@ func TestKeyStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("account file %s doesn't exist (%v)", a.URL, err)
 	}
-	if runtime.GOOS != "windows" && stat.Mode() != 0600 {
-		t.Fatalf("account file has wrong mode: got %o, want %o", stat.Mode(), 0600)
+	if runtime.GOOS != "windows" && stat.Mode() != 0o600 {
+		t.Fatalf("account file has wrong mode: got %o, want %o", stat.Mode(), 0o600)
 	}
 	if !ks.HasAddress(a.Address) {
 		t.Errorf("HasAccount(%x) should've returned true", a.Address)
@@ -435,7 +435,7 @@ func checkAccounts(t *testing.T, live map[common.Address]accounts.Account, walle
 }
 
 // checkEvents checks that all events in 'want' are present in 'have'. Events may be present multiple times.
-func checkEvents(t *testing.T, want []walletEvent, have []walletEvent) {
+func checkEvents(t *testing.T, want, have []walletEvent) {
 	for _, wantEv := range want {
 		nmatch := 0
 		for ; len(have) > 0; nmatch++ {

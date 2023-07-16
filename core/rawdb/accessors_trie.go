@@ -88,7 +88,7 @@ func HasAccountTrieNode(db ethdb.KeyValueReader, path []byte, hash common.Hash) 
 }
 
 // WriteAccountTrieNode writes the provided account trie node into database.
-func WriteAccountTrieNode(db ethdb.KeyValueWriter, path []byte, node []byte) {
+func WriteAccountTrieNode(db ethdb.KeyValueWriter, path, node []byte) {
 	if err := db.Put(accountTrieNodeKey(path), node); err != nil {
 		log.Crit("Failed to store account trie node", "err", err)
 	}
@@ -126,7 +126,7 @@ func HasStorageTrieNode(db ethdb.KeyValueReader, accountHash common.Hash, path [
 }
 
 // WriteStorageTrieNode writes the provided storage trie node into database.
-func WriteStorageTrieNode(db ethdb.KeyValueWriter, accountHash common.Hash, path []byte, node []byte) {
+func WriteStorageTrieNode(db ethdb.KeyValueWriter, accountHash common.Hash, path, node []byte) {
 	if err := db.Put(storageTrieNodeKey(accountHash, path), node); err != nil {
 		log.Crit("Failed to store storage trie node", "err", err)
 	}

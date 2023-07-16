@@ -343,9 +343,9 @@ func TestEth2NewBlock(t *testing.T) {
 	}
 
 	// Introduce fork chain
-	var (
-		head = ethservice.BlockChain().CurrentBlock().Number.Uint64()
-	)
+
+	head := ethservice.BlockChain().CurrentBlock().Number.Uint64()
+
 	parent = preMergeBlocks[len(preMergeBlocks)-1]
 	for i := 0; i < 10; i++ {
 		execData, err := assembleBlock(api, parent.Hash(), &engine.PayloadAttributes{
@@ -436,7 +436,8 @@ func startEthService(t *testing.T, genesis *core.Genesis, blocks []*types.Block)
 			ListenAddr:  "0.0.0.0:0",
 			NoDiscovery: true,
 			MaxPeers:    25,
-		}})
+		},
+	})
 	if err != nil {
 		t.Fatal("can't create node:", err)
 	}
@@ -778,7 +779,7 @@ func setBlockhash(data *engine.ExecutableData) *engine.ExecutableData {
 }
 
 func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
-	var txs = make([]*types.Transaction, len(enc))
+	txs := make([]*types.Transaction, len(enc))
 	for i, encTx := range enc {
 		var tx types.Transaction
 		if err := tx.UnmarshalBinary(encTx); err != nil {
@@ -812,12 +813,12 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 
 	var invalidChain []*engine.ExecutableData
 	// create a valid payload (P1)
-	//payload1 := getNewPayload(t, apiA, commonAncestor)
-	//invalidChain = append(invalidChain, payload1)
+	// payload1 := getNewPayload(t, apiA, commonAncestor)
+	// invalidChain = append(invalidChain, payload1)
 
 	// create an invalid payload2 (P2)
 	payload2 := getNewPayload(t, apiA, commonAncestor, nil)
-	//payload2.ParentHash = payload1.BlockHash
+	// payload2.ParentHash = payload1.BlockHash
 	payload2.GasUsed += 1
 	payload2 = setBlockhash(payload2)
 	invalidChain = append(invalidChain, payload2)
@@ -1289,6 +1290,7 @@ func allHashes(blocks []*types.Block) []common.Hash {
 	}
 	return hashes
 }
+
 func allBodies(blocks []*types.Block) []*types.Body {
 	var bodies []*types.Body
 	for _, b := range blocks {

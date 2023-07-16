@@ -114,7 +114,7 @@ type replyMatcher struct {
 	reply v4wire.Packet
 }
 
-type replyMatchFunc func(v4wire.Packet) (matched bool, requestDone bool)
+type replyMatchFunc func(v4wire.Packet) (matched, requestDone bool)
 
 // reply is a reply packet from a certain node.
 type reply struct {
@@ -233,7 +233,7 @@ func (t *UDPv4) sendPing(toid enode.ID, toaddr *net.UDPAddr, callback func()) *r
 	}
 	// Add a matcher for the reply to the pending reply queue. Pongs are matched if they
 	// reference the ping we're about to send.
-	rm := t.pending(toid, toaddr.IP, v4wire.PongPacket, func(p v4wire.Packet) (matched bool, requestDone bool) {
+	rm := t.pending(toid, toaddr.IP, v4wire.PongPacket, func(p v4wire.Packet) (matched, requestDone bool) {
 		matched = bytes.Equal(p.(*v4wire.Pong).ReplyTok, hash)
 		if matched && callback != nil {
 			callback()
@@ -305,7 +305,7 @@ func (t *UDPv4) findnode(toid enode.ID, toaddr *net.UDPAddr, target v4wire.Pubke
 	// active until enough nodes have been received.
 	nodes := make([]*node, 0, bucketSize)
 	nreceived := 0
-	rm := t.pending(toid, toaddr.IP, v4wire.NeighborsPacket, func(r v4wire.Packet) (matched bool, requestDone bool) {
+	rm := t.pending(toid, toaddr.IP, v4wire.NeighborsPacket, func(r v4wire.Packet) (matched, requestDone bool) {
 		reply := r.(*v4wire.Neighbors)
 		for _, rn := range reply.Nodes {
 			nreceived++
@@ -349,7 +349,7 @@ func (t *UDPv4) RequestENR(n *enode.Node) (*enode.Node, error) {
 
 	// Add a matcher for the reply to the pending reply queue. Responses are matched if
 	// they reference the request we're about to send.
-	rm := t.pending(n.ID(), addr.IP, v4wire.ENRResponsePacket, func(r v4wire.Packet) (matched bool, requestDone bool) {
+	rm := t.pending(n.ID(), addr.IP, v4wire.ENRResponsePacket, func(r v4wire.Packet) (matched, requestDone bool) {
 		matched = bytes.Equal(r.(*v4wire.ENRResponse).ReplyTok, hash)
 		return matched, matched
 	})

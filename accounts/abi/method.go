@@ -91,7 +91,7 @@ type Method struct {
 // A method should always be created using NewMethod.
 // It also precomputes the sig representation and the string representation
 // of the method.
-func NewMethod(name string, rawName string, funType FunctionType, mutability string, isConst, isPayable bool, inputs Arguments, outputs Arguments) Method {
+func NewMethod(name, rawName string, funType FunctionType, mutability string, isConst, isPayable bool, inputs, outputs Arguments) Method {
 	var (
 		types       = make([]string, len(inputs))
 		inputNames  = make([]string, len(inputs))

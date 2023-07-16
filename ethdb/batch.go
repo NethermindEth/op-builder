@@ -53,12 +53,12 @@ type Batcher interface {
 type HookedBatch struct {
 	Batch
 
-	OnPut    func(key []byte, value []byte) // Callback if a key is inserted
-	OnDelete func(key []byte)               // Callback if a key is deleted
+	OnPut    func(key, value []byte) // Callback if a key is inserted
+	OnDelete func(key []byte)        // Callback if a key is deleted
 }
 
 // Put inserts the given value into the key-value data store.
-func (b HookedBatch) Put(key []byte, value []byte) error {
+func (b HookedBatch) Put(key, value []byte) error {
 	if b.OnPut != nil {
 		b.OnPut(key, value)
 	}

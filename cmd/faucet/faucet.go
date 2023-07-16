@@ -90,9 +90,7 @@ var (
 	sepoliaFlag = flag.Bool("sepolia", false, "Initializes the faucet with Sepolia network config")
 )
 
-var (
-	ether = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
-)
+var ether = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 
 //go:embed faucet.html
 var websiteTmpl string
@@ -681,7 +679,7 @@ func sendSuccess(conn *wsConn, msg string) error {
 
 // authTwitter tries to authenticate a faucet request using Twitter posts, returning
 // the uniqueness identifier (user id/username), username, avatar URL and Ethereum address to fund on success.
-func authTwitter(url string, tokenV1, tokenV2 string) (string, string, string, common.Address, error) {
+func authTwitter(url, tokenV1, tokenV2 string) (string, string, string, common.Address, error) {
 	// Ensure the user specified a meaningful URL, no fancy nonsense
 	parts := strings.Split(url, "/")
 	if len(parts) < 4 || parts[len(parts)-2] != "status" {
@@ -744,7 +742,7 @@ func authTwitter(url string, tokenV1, tokenV2 string) (string, string, string, c
 // authTwitterWithTokenV1 tries to authenticate a faucet request using Twitter's v1
 // API, returning the user id, username, avatar URL and Ethereum address to fund on
 // success.
-func authTwitterWithTokenV1(tweetID string, token string) (string, string, string, common.Address, error) {
+func authTwitterWithTokenV1(tweetID, token string) (string, string, string, common.Address, error) {
 	// Query the tweet details from Twitter
 	url := fmt.Sprintf("https://api.twitter.com/1.1/statuses/show.json?id=%s", tweetID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -781,7 +779,7 @@ func authTwitterWithTokenV1(tweetID string, token string) (string, string, strin
 // authTwitterWithTokenV2 tries to authenticate a faucet request using Twitter's v2
 // API, returning the user id, username, avatar URL and Ethereum address to fund on
 // success.
-func authTwitterWithTokenV2(tweetID string, token string) (string, string, string, common.Address, error) {
+func authTwitterWithTokenV2(tweetID, token string) (string, string, string, common.Address, error) {
 	// Query the tweet details from Twitter
 	url := fmt.Sprintf("https://api.twitter.com/2/tweets/%s?expansions=author_id&user.fields=profile_image_url", tweetID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -880,7 +878,7 @@ func authNoAuth(url string) (string, string, common.Address, error) {
 }
 
 // getGenesis returns a genesis based on input args
-func getGenesis(genesisFlag string, goerliFlag bool, rinkebyFlag bool, sepoliaFlag bool) (*core.Genesis, error) {
+func getGenesis(genesisFlag string, goerliFlag, rinkebyFlag, sepoliaFlag bool) (*core.Genesis, error) {
 	switch {
 	case genesisFlag != "":
 		var genesis core.Genesis
