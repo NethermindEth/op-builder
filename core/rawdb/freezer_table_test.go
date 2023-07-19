@@ -146,7 +146,7 @@ func TestFreezerRepairDanglingHead(t *testing.T) {
 	}
 
 	// open the index
-	idxFile, err := os.OpenFile(filepath.Join(os.TempDir(), fmt.Sprintf("%s.ridx", fname)), os.O_RDWR, 0o644)
+	idxFile, err := os.OpenFile(filepath.Join(os.TempDir(), fmt.Sprintf("%s.ridx", fname)), os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("Failed to open index file: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestFreezerRepairDanglingHeadLarge(t *testing.T) {
 	}
 
 	// open the index
-	idxFile, err := os.OpenFile(filepath.Join(os.TempDir(), fmt.Sprintf("%s.ridx", fname)), os.O_RDWR, 0o644)
+	idxFile, err := os.OpenFile(filepath.Join(os.TempDir(), fmt.Sprintf("%s.ridx", fname)), os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("Failed to open index file: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestFreezerRepairDanglingIndex(t *testing.T) {
 		if err := assertFileSize(fileToCrop, 45); err != nil {
 			t.Fatal(err)
 		}
-		file, err := os.OpenFile(fileToCrop, os.O_RDWR, 0o644)
+		file, err := os.OpenFile(fileToCrop, os.O_RDWR, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -430,7 +430,7 @@ func TestFreezerRepairFirstFile(t *testing.T) {
 		if err := assertFileSize(fileToCrop, 40); err != nil {
 			t.Fatal(err)
 		}
-		file, err := os.OpenFile(fileToCrop, os.O_RDWR, 0o644)
+		file, err := os.OpenFile(fileToCrop, os.O_RDWR, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -555,7 +555,7 @@ func TestFreezerOffset(t *testing.T) {
 		}
 		// Read the index file
 		p := filepath.Join(os.TempDir(), fmt.Sprintf("%v.ridx", fname))
-		indexFile, err := os.OpenFile(p, os.O_RDWR, 0o644)
+		indexFile, err := os.OpenFile(p, os.O_RDWR, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -614,7 +614,7 @@ func TestFreezerOffset(t *testing.T) {
 	{
 		// Read the index file
 		p := filepath.Join(os.TempDir(), fmt.Sprintf("%v.ridx", fname))
-		indexFile, err := os.OpenFile(p, os.O_RDWR, 0o644)
+		indexFile, err := os.OpenFile(p, os.O_RDWR, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -853,7 +853,7 @@ func checkRetrieveError(t *testing.T, f *freezerTable, items map[uint64]error) {
 }
 
 // Gets a chunk of data, filled with 'b'
-func getChunk(size, b int) []byte {
+func getChunk(size int, b int) []byte {
 	data := make([]byte, size)
 	for i := range data {
 		data[i] = byte(b)
@@ -872,7 +872,7 @@ func getChunk(size, b int) []byte {
 // should be handled already, and the case described above can only (?) happen if an
 // external process/user deletes files from the filesystem.
 
-func writeChunks(t *testing.T, ft *freezerTable, n, length int) {
+func writeChunks(t *testing.T, ft *freezerTable, n int, length int) {
 	t.Helper()
 
 	batch := ft.newBatch()
@@ -1136,7 +1136,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 
 		// addItems appends the given length items into the table.
 		addItems = func(n int) []uint64 {
-			first := deleted
+			var first = deleted
 			if len(items) != 0 {
 				first = items[len(items)-1] + 1
 			}

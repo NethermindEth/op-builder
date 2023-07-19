@@ -56,7 +56,7 @@ func TestLightPruner(t *testing.T) {
 		it := client.db.NewIterator(prefix, nil)
 		defer it.Release()
 
-		next := from
+		var next = from
 		for it.Next() {
 			number := resolve(it.Key(), it.Value())
 			if number == nil || *number < from {
@@ -136,7 +136,7 @@ func TestLightPruner(t *testing.T) {
 	checkPruned(1, config.ChtSize-1)
 
 	// Ensure all APIs still work after pruning.
-	cases := []struct {
+	var cases = []struct {
 		from, to   uint64
 		methodName string
 		method     func(uint64) bool

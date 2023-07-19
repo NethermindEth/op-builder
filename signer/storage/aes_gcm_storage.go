@@ -114,6 +114,7 @@ func (s *AESEncryptedStorage) Del(key string) {
 func (s *AESEncryptedStorage) readEncryptedStorage() (map[string]storedCredential, error) {
 	creds := make(map[string]storedCredential)
 	raw, err := os.ReadFile(s.filename)
+
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Doesn't exist yet
@@ -134,7 +135,7 @@ func (s *AESEncryptedStorage) writeEncryptedStorage(creds map[string]storedCrede
 	if err != nil {
 		return err
 	}
-	if err = os.WriteFile(s.filename, raw, 0o600); err != nil {
+	if err = os.WriteFile(s.filename, raw, 0600); err != nil {
 		return err
 	}
 	return nil
@@ -143,7 +144,7 @@ func (s *AESEncryptedStorage) writeEncryptedStorage(creds map[string]storedCrede
 // encrypt encrypts plaintext with the given key, with additional data
 // The 'additionalData' is used to place the (plaintext) KV-store key into the V,
 // to prevent the possibility to alter a K, or swap two entries in the KV store with each other.
-func encrypt(key, plaintext, additionalData []byte) ([]byte, []byte, error) {
+func encrypt(key []byte, plaintext []byte, additionalData []byte) ([]byte, []byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, nil, err
@@ -160,7 +161,7 @@ func encrypt(key, plaintext, additionalData []byte) ([]byte, []byte, error) {
 	return ciphertext, nonce, nil
 }
 
-func decrypt(key, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+func decrypt(key []byte, nonce []byte, ciphertext []byte, additionalData []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

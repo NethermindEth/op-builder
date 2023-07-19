@@ -317,7 +317,7 @@ func (mgr *nodeManager) run() {
 		}
 		nodes := mgr.getNodes(eth2MiningNode)
 		nodes = append(nodes, mgr.getNodes(eth2NormalNode)...)
-		// nodes = append(nodes, mgr.getNodes(eth2LightClient)...)
+		//nodes = append(nodes, mgr.getNodes(eth2LightClient)...)
 		for _, node := range nodes {
 			fcState := engine.ForkchoiceStateV1{
 				HeadBlockHash:      parentBlock.Hash(),

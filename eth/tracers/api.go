@@ -85,7 +85,7 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	Engine() consensus.Engine
 	ChainDb() ethdb.Database
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly, preferDisk bool) (*state.StateDB, StateReleaseFunc, error)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, StateReleaseFunc, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (*core.Message, vm.BlockContext, *state.StateDB, StateReleaseFunc, error)
 	HistoricalRPCService() *rpc.Client
 }
@@ -1053,7 +1053,7 @@ func APIs(backend Backend) []rpc.API {
 // overrideConfig returns a copy of original with forks enabled by override enabled,
 // along with a boolean that indicates whether the copy is canonical (equivalent to the original).
 // Note: the Clique-part is _not_ deep copied
-func overrideConfig(original, override *params.ChainConfig) (*params.ChainConfig, bool) {
+func overrideConfig(original *params.ChainConfig, override *params.ChainConfig) (*params.ChainConfig, bool) {
 	copy := new(params.ChainConfig)
 	*copy = *original
 	canon := true

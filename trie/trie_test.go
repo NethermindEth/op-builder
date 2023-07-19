@@ -318,7 +318,7 @@ func TestLargeValue(t *testing.T) {
 
 // TestRandomCases tests som cases that were found via random fuzzing
 func TestRandomCases(t *testing.T) {
-	rt := []randTestStep{
+	var rt = []randTestStep{
 		{op: 6, key: common.Hex2Bytes(""), value: common.Hex2Bytes("")},                                                                                                 // step 0
 		{op: 6, key: common.Hex2Bytes(""), value: common.Hex2Bytes("")},                                                                                                 // step 1
 		{op: 0, key: common.Hex2Bytes("d51b182b95d677e5f1c82508c0228de96b73092d78ce78b2230cd948674f66fd1483bd"), value: common.Hex2Bytes("0000000000000002")},           // step 2
@@ -402,7 +402,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(steps)
 }
 
-func verifyAccessList(old, new *Trie, set *NodeSet) error {
+func verifyAccessList(old *Trie, new *Trie, set *NodeSet) error {
 	deletes, inserts, updates := diffTries(old, new)
 
 	// Check insertion set
@@ -648,7 +648,7 @@ func BenchmarkHash(b *testing.B) {
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
-	// trie.hashRoot(nil, nil)
+	//trie.hashRoot(nil, nil)
 	trie.Hash()
 }
 
@@ -745,7 +745,7 @@ func makeAccounts(size int) (addresses [][20]byte, accounts [][]byte) {
 		)
 		// The big.Rand function is not deterministic with regards to 64 vs 32 bit systems,
 		// and will consume different amount of data from the rand source.
-		// balance = new(big.Int).Rand(random, new(big.Int).Exp(common.Big2, common.Big256, nil))
+		//balance = new(big.Int).Rand(random, new(big.Int).Exp(common.Big2, common.Big256, nil))
 		// Therefore, we instead just read via byte buffer
 		numBytes := random.Uint32() % 33 // [0, 32] bytes
 		balanceBytes := make([]byte, numBytes)
@@ -764,16 +764,16 @@ type spongeDb struct {
 	journal []string
 }
 
-func (s *spongeDb) Has(key []byte) (bool, error)          { panic("implement me") }
-func (s *spongeDb) Get(key []byte) ([]byte, error)        { return nil, errors.New("no such elem") }
-func (s *spongeDb) Delete(key []byte) error               { panic("implement me") }
-func (s *spongeDb) NewBatch() ethdb.Batch                 { return &spongeBatch{s} }
-func (s *spongeDb) NewBatchWithSize(size int) ethdb.Batch { return &spongeBatch{s} }
-func (s *spongeDb) NewSnapshot() (ethdb.Snapshot, error)  { panic("implement me") }
-func (s *spongeDb) Stat(property string) (string, error)  { panic("implement me") }
-func (s *spongeDb) Compact(start, limit []byte) error     { panic("implement me") }
-func (s *spongeDb) Close() error                          { return nil }
-func (s *spongeDb) Put(key, value []byte) error {
+func (s *spongeDb) Has(key []byte) (bool, error)             { panic("implement me") }
+func (s *spongeDb) Get(key []byte) ([]byte, error)           { return nil, errors.New("no such elem") }
+func (s *spongeDb) Delete(key []byte) error                  { panic("implement me") }
+func (s *spongeDb) NewBatch() ethdb.Batch                    { return &spongeBatch{s} }
+func (s *spongeDb) NewBatchWithSize(size int) ethdb.Batch    { return &spongeBatch{s} }
+func (s *spongeDb) NewSnapshot() (ethdb.Snapshot, error)     { panic("implement me") }
+func (s *spongeDb) Stat(property string) (string, error)     { panic("implement me") }
+func (s *spongeDb) Compact(start []byte, limit []byte) error { panic("implement me") }
+func (s *spongeDb) Close() error                             { return nil }
+func (s *spongeDb) Put(key []byte, value []byte) error {
 	valbrief := value
 	if len(valbrief) > 8 {
 		valbrief = valbrief[:8]
@@ -783,7 +783,7 @@ func (s *spongeDb) Put(key, value []byte) error {
 	s.sponge.Write(value)
 	return nil
 }
-func (s *spongeDb) NewIterator(prefix, start []byte) ethdb.Iterator { panic("implement me") }
+func (s *spongeDb) NewIterator(prefix []byte, start []byte) ethdb.Iterator { panic("implement me") }
 
 // spongeBatch is a dummy batch which immediately writes to the underlying spongedb
 type spongeBatch struct {

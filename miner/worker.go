@@ -912,7 +912,7 @@ func (w *worker) resultLoop() {
 }
 
 // makeEnv creates a new environment for the sealing block.
-func (w *worker) makeEnv(parent, header *types.Header, coinbase common.Address) (*environment, error) {
+func (w *worker) makeEnv(parent *types.Header, header *types.Header, coinbase common.Address) (*environment, error) {
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root)
@@ -1544,7 +1544,7 @@ func (w *worker) generateWork(genParams *generateParams) (*types.Block, *big.Int
 	}
 
 	finalizeFn := func(env *environment, orderCloseTime time.Time,
-		blockBundles, allBundles []types.SimulatedBundle, usedSbundles []types.UsedSBundle, noTxs bool,
+		blockBundles []types.SimulatedBundle, allBundles []types.SimulatedBundle, usedSbundles []types.UsedSBundle, noTxs bool,
 	) (*types.Block, *big.Int, error) {
 		block, profit, err := w.finalizeBlock(env, genParams.withdrawals, validatorCoinbase, noTxs)
 		if err != nil {

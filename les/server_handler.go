@@ -53,7 +53,9 @@ const (
 	MaxTxStatus              = 256 // Amount of transactions to queried per request
 )
 
-var errTooManyInvalidRequest = errors.New("too many invalid requests made")
+var (
+	errTooManyInvalidRequest = errors.New("too many invalid requests made")
+)
 
 // serverHandler is responsible for serving light client and process
 // all incoming light requests.
@@ -181,7 +183,7 @@ func (h *serverHandler) handle(p *clientPeer) error {
 }
 
 // beforeHandle will do a series of prechecks before handling message.
-func (h *serverHandler) beforeHandle(p *clientPeer, reqID, responseCount uint64, msg p2p.Msg, reqCnt, maxCount uint64) (*servingTask, uint64) {
+func (h *serverHandler) beforeHandle(p *clientPeer, reqID, responseCount uint64, msg p2p.Msg, reqCnt uint64, maxCount uint64) (*servingTask, uint64) {
 	// Ensure that the request sent by client peer is valid
 	inSizeCost := h.server.costTracker.realCost(0, msg.Size, 0)
 	if reqCnt == 0 || reqCnt > maxCount {
@@ -220,7 +222,7 @@ func (h *serverHandler) beforeHandle(p *clientPeer, reqID, responseCount uint64,
 
 // Afterhandle will perform a series of operations after message handling,
 // such as updating flow control data, sending reply, etc.
-func (h *serverHandler) afterHandle(p *clientPeer, reqID, responseCount uint64, msg p2p.Msg, maxCost, reqCnt uint64, task *servingTask, reply *reply) {
+func (h *serverHandler) afterHandle(p *clientPeer, reqID, responseCount uint64, msg p2p.Msg, maxCost uint64, reqCnt uint64, task *servingTask, reply *reply) {
 	if reply != nil {
 		task.done()
 	}

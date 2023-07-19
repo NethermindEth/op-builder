@@ -204,7 +204,6 @@ func testShortOldForkedRepair(t *testing.T, snapshots bool) {
 func TestShortOldForkedSnapSyncedRepair(t *testing.T) {
 	testShortOldForkedSnapSyncedRepair(t, false)
 }
-
 func TestShortOldForkedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortOldForkedSnapSyncedRepair(t, true)
 }
@@ -252,7 +251,6 @@ func testShortOldForkedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortOldForkedSnapSyncingRepair(t *testing.T) {
 	testShortOldForkedSnapSyncingRepair(t, false)
 }
-
 func TestShortOldForkedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortOldForkedSnapSyncingRepair(t, true)
 }
@@ -343,7 +341,6 @@ func testShortNewlyForkedRepair(t *testing.T, snapshots bool) {
 func TestShortNewlyForkedSnapSyncedRepair(t *testing.T) {
 	testShortNewlyForkedSnapSyncedRepair(t, false)
 }
-
 func TestShortNewlyForkedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortNewlyForkedSnapSyncedRepair(t, true)
 }
@@ -391,7 +388,6 @@ func testShortNewlyForkedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortNewlyForkedSnapSyncingRepair(t *testing.T) {
 	testShortNewlyForkedSnapSyncingRepair(t, false)
 }
-
 func TestShortNewlyForkedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortNewlyForkedSnapSyncingRepair(t, true)
 }
@@ -480,7 +476,6 @@ func testShortReorgedRepair(t *testing.T, snapshots bool) {
 func TestShortReorgedSnapSyncedRepair(t *testing.T) {
 	testShortReorgedSnapSyncedRepair(t, false)
 }
-
 func TestShortReorgedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortReorgedSnapSyncedRepair(t, true)
 }
@@ -527,7 +522,6 @@ func testShortReorgedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortReorgedSnapSyncingRepair(t *testing.T) {
 	testShortReorgedSnapSyncingRepair(t, false)
 }
-
 func TestShortReorgedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortReorgedSnapSyncingRepair(t, true)
 }
@@ -663,7 +657,6 @@ func testLongDeepRepair(t *testing.T, snapshots bool) {
 func TestLongSnapSyncedShallowRepair(t *testing.T) {
 	testLongSnapSyncedShallowRepair(t, false)
 }
-
 func TestLongSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongSnapSyncedShallowRepair(t, true)
 }
@@ -758,7 +751,6 @@ func testLongSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongSnapSyncingShallowRepair(t *testing.T) {
 	testLongSnapSyncingShallowRepair(t, false)
 }
-
 func TestLongSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongSnapSyncingShallowRepair(t, true)
 }
@@ -856,7 +848,6 @@ func testLongSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedShallowRepair(t *testing.T) {
 	testLongOldForkedShallowRepair(t, false)
 }
-
 func TestLongOldForkedShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedShallowRepair(t, true)
 }
@@ -956,7 +947,6 @@ func testLongOldForkedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncedShallowRepair(t *testing.T) {
 	testLongOldForkedSnapSyncedShallowRepair(t, false)
 }
-
 func TestLongOldForkedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncedShallowRepair(t, true)
 }
@@ -1009,7 +999,6 @@ func testLongOldForkedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncedDeepRepair(t *testing.T) {
 	testLongOldForkedSnapSyncedDeepRepair(t, false)
 }
-
 func TestLongOldForkedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncedDeepRepair(t, true)
 }
@@ -1061,7 +1050,6 @@ func testLongOldForkedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncingShallowRepair(t *testing.T) {
 	testLongOldForkedSnapSyncingShallowRepair(t, false)
 }
-
 func TestLongOldForkedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncingShallowRepair(t, true)
 }
@@ -1114,7 +1102,6 @@ func testLongOldForkedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncingDeepRepair(t *testing.T) {
 	testLongOldForkedSnapSyncingDeepRepair(t, false)
 }
-
 func TestLongOldForkedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncingDeepRepair(t, true)
 }
@@ -1167,7 +1154,6 @@ func testLongOldForkedSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedShallowRepair(t *testing.T) {
 	testLongNewerForkedShallowRepair(t, false)
 }
-
 func TestLongNewerForkedShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedShallowRepair(t, true)
 }
@@ -1267,7 +1253,6 @@ func testLongNewerForkedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncedShallowRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncedShallowRepair(t, false)
 }
-
 func TestLongNewerForkedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncedShallowRepair(t, true)
 }
@@ -1320,7 +1305,6 @@ func testLongNewerForkedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncedDeepRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncedDeepRepair(t, false)
 }
-
 func TestLongNewerForkedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncedDeepRepair(t, true)
 }
@@ -1372,7 +1356,6 @@ func testLongNewerForkedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncingShallowRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncingShallowRepair(t, false)
 }
-
 func TestLongNewerForkedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncingShallowRepair(t, true)
 }
@@ -1425,7 +1408,6 @@ func testLongNewerForkedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncingDeepRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncingDeepRepair(t, false)
 }
-
 func TestLongNewerForkedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncingDeepRepair(t, true)
 }
@@ -1571,7 +1553,6 @@ func testLongReorgedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncedShallowRepair(t *testing.T) {
 	testLongReorgedSnapSyncedShallowRepair(t, false)
 }
-
 func TestLongReorgedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncedShallowRepair(t, true)
 }
@@ -1623,7 +1604,6 @@ func testLongReorgedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncedDeepRepair(t *testing.T) {
 	testLongReorgedSnapSyncedDeepRepair(t, false)
 }
-
 func TestLongReorgedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncedDeepRepair(t, true)
 }
@@ -1674,7 +1654,6 @@ func testLongReorgedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncingShallowRepair(t *testing.T) {
 	testLongReorgedSnapSyncingShallowRepair(t, false)
 }
-
 func TestLongReorgedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncingShallowRepair(t, true)
 }
@@ -1726,7 +1705,6 @@ func testLongReorgedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncingDeepRepair(t *testing.T) {
 	testLongReorgedSnapSyncingDeepRepair(t, false)
 }
-
 func TestLongReorgedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncingDeepRepair(t, true)
 }
@@ -1772,7 +1750,7 @@ func testLongReorgedSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 
 func testRepair(t *testing.T, tt *rewindTest, snapshots bool) {
 	// It's hard to follow the test case, visualize the input
-	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 	// fmt.Println(tt.dump(true))
 
 	// Create a temporary persistent database
@@ -1908,7 +1886,7 @@ func testRepair(t *testing.T, tt *rewindTest, snapshots bool) {
 // state.
 func TestIssue23496(t *testing.T) {
 	// It's hard to follow the test case, visualize the input
-	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	// Create a temporary persistent database
 	datadir := t.TempDir()
@@ -1917,6 +1895,7 @@ func TestIssue23496(t *testing.T) {
 		Directory:         datadir,
 		AncientsDirectory: datadir,
 	})
+
 	if err != nil {
 		t.Fatalf("Failed to create persistent database: %v", err)
 	}

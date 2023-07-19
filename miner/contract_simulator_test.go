@@ -70,7 +70,7 @@ type TestParticipants struct {
 	users     []TestParticipant
 }
 
-func NewTestParticipants(nSearchers, nUsers int) TestParticipants {
+func NewTestParticipants(nSearchers int, nUsers int) TestParticipants {
 	opa := TestParticipants{}
 
 	for i := 0; i < nSearchers; i++ {
@@ -136,7 +136,7 @@ func TestSimulatorState(t *testing.T) {
 	testParticipants := NewTestParticipants(5, 5)
 	alloc = testParticipants.AppendToGenesisAlloc(alloc)
 
-	genesis := core.Genesis{
+	var genesis = core.Genesis{
 		Config:   &chainConfig,
 		Alloc:    alloc,
 		GasLimit: 30000000,

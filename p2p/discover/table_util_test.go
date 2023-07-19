@@ -56,7 +56,7 @@ func nodeAtDistance(base enode.ID, ld int, ip net.IP) *node {
 }
 
 // nodesAtDistance creates n nodes for which enode.LogDist(base, node.ID()) == ld.
-func nodesAtDistance(base enode.ID, ld, n int) []*enode.Node {
+func nodesAtDistance(base enode.ID, ld int, n int) []*enode.Node {
 	results := make([]*enode.Node, n)
 	for i := range results {
 		results[i] = unwrapNode(nodeAtDistance(base, ld, intIP(i)))
@@ -211,7 +211,7 @@ NotEqual:
 	return errors.New(output.String())
 }
 
-func nodeEqual(n1, n2 *enode.Node) bool {
+func nodeEqual(n1 *enode.Node, n2 *enode.Node) bool {
 	return n1.ID() == n2.ID() && n1.IP().Equal(n2.IP())
 }
 

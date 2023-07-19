@@ -469,7 +469,9 @@ var (
 	veryVeryBigInt = new(big.Int).Exp(veryBigInt, big.NewInt(8), nil)
 )
 
-var veryBigInt256, _ = uint256.FromBig(veryBigInt)
+var (
+	veryBigInt256, _ = uint256.FromBig(veryBigInt)
+)
 
 var decodeTests = []decodeTest{
 	// booleans

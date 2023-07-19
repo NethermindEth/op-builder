@@ -42,7 +42,7 @@ func (ui *StdIOUI) RegisterUIServer(api *UIServerAPI) {
 }
 
 // dispatch sends a request over the stdio
-func (ui *StdIOUI) dispatch(serviceMethod string, args, reply interface{}) error {
+func (ui *StdIOUI) dispatch(serviceMethod string, args interface{}, reply interface{}) error {
 	err := ui.client.Call(&reply, serviceMethod, args)
 	if err != nil {
 		log.Info("Error", "exc", err.Error())
@@ -97,7 +97,6 @@ func (ui *StdIOUI) ShowInfo(message string) {
 		log.Info("Error calling 'ui_showInfo'", "exc", err.Error(), "msg", message)
 	}
 }
-
 func (ui *StdIOUI) OnApprovedTx(tx ethapi.SignTransactionResult) {
 	err := ui.notify("ui_onApprovedTx", tx)
 	if err != nil {
@@ -111,7 +110,6 @@ func (ui *StdIOUI) OnSignerStartup(info StartupInfo) {
 		log.Info("Error calling 'ui_onSignerStartup'", "exc", err.Error(), "info", info)
 	}
 }
-
 func (ui *StdIOUI) OnInputRequired(info UserInputRequest) (UserInputResponse, error) {
 	var result UserInputResponse
 	err := ui.dispatch("ui_onInputRequired", info, &result)

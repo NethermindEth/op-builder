@@ -98,7 +98,7 @@ type TxData interface {
 	// Unlike other TxData methods, the returned *big.Int should be an independent
 	// copy of the computed value, i.e. callers are allowed to mutate the result.
 	// Method implementations can use 'dst' to store the result.
-	effectiveGasPrice(dst, baseFee *big.Int) *big.Int
+	effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int
 }
 
 // EncodeRLP implements rlp.Encoder
@@ -216,7 +216,7 @@ func (tx *Transaction) setDecoded(inner TxData, size uint64) {
 	}
 }
 
-func sanityCheckSignature(v, r, s *big.Int, maybeProtected bool) error {
+func sanityCheckSignature(v *big.Int, r *big.Int, s *big.Int, maybeProtected bool) error {
 	if isProtectedV(v) && !maybeProtected {
 		return ErrUnexpectedProtection
 	}
@@ -438,7 +438,7 @@ func (tx *Transaction) EffectiveGasTipCmp(other *Transaction, baseFee *big.Int) 
 }
 
 // EffectiveGasTipIntCmp compares the effective gasTipCap of a transaction to the given gasTipCap.
-func (tx *Transaction) EffectiveGasTipIntCmp(other, baseFee *big.Int) int {
+func (tx *Transaction) EffectiveGasTipIntCmp(other *big.Int, baseFee *big.Int) int {
 	if baseFee == nil {
 		return tx.GasTipCapIntCmp(other)
 	}

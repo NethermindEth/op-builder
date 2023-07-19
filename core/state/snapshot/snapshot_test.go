@@ -66,7 +66,7 @@ func randomAccountSet(hashes ...string) map[common.Hash][]byte {
 
 // randomStorageSet generates a set of random slots with the given strings as
 // the slot addresses.
-func randomStorageSet(accounts []string, hashes, nilStorage [][]string) map[common.Hash]map[common.Hash][]byte {
+func randomStorageSet(accounts []string, hashes [][]string, nilStorage [][]string) map[common.Hash]map[common.Hash][]byte {
 	storages := make(map[common.Hash]map[common.Hash][]byte)
 	for index, account := range accounts {
 		storages[common.HexToHash(account)] = make(map[common.Hash][]byte)
@@ -364,7 +364,7 @@ func TestSnaphots(t *testing.T) {
 		last = head
 		snaps.Cap(head, 128) // 130 layers (128 diffs + 1 accumulator + 1 disk)
 	}
-	cases := []struct {
+	var cases = []struct {
 		headRoot     common.Hash
 		limit        int
 		nodisk       bool
@@ -461,7 +461,7 @@ func TestReadStateDuringFlattening(t *testing.T) {
 	snap := snaps.Snapshot(common.HexToHash("0xa3"))
 
 	// Register the testing hook to access the state after flattening
-	result := make(chan *Account)
+	var result = make(chan *Account)
 	snaps.onFlatten = func() {
 		// Spin up a thread to read the account from the pre-created
 		// snapshot handler. It's expected to be blocked.

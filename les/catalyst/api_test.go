@@ -244,7 +244,7 @@ func startLesService(t *testing.T, genesis *core.Genesis, headers []*types.Heade
 }
 
 func encodeTransactions(txs []*types.Transaction) [][]byte {
-	enc := make([][]byte, len(txs))
+	var enc = make([][]byte, len(txs))
 	for i, tx := range txs {
 		enc[i], _ = tx.MarshalBinary()
 	}

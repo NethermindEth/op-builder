@@ -32,9 +32,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
+
+	boostTypes "github.com/flashbots/go-boost-utils/types"
 )
 
 /* Based on catalyst API tests */
@@ -346,8 +347,7 @@ func startEthService(t *testing.T, genesis *core.Genesis, blocks []*types.Block)
 			ListenAddr:  "0.0.0.0:0",
 			NoDiscovery: true,
 			MaxPeers:    25,
-		},
-	})
+		}})
 	if err != nil {
 		t.Fatal("can't create node:", err)
 	}
@@ -405,7 +405,7 @@ func TestBlacklistLoad(t *testing.T) {
 	ba := BlacklistedAddresses{common.Address{0x13}, common.Address{0x14}}
 	bytes, err := json.MarshalIndent(ba, "", " ")
 	require.NoError(t, err)
-	err = os.WriteFile(file.Name(), bytes, 0o644)
+	err = os.WriteFile(file.Name(), bytes, 0644)
 	require.NoError(t, err)
 
 	av, err = NewAccessVerifierFromFile(file.Name())

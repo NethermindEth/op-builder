@@ -48,7 +48,7 @@ func testULCAnnounceThreshold(t *testing.T, protocol int) {
 		return c, teardown
 	}
 
-	cases := []struct {
+	var cases = []struct {
 		height    []int
 		threshold int
 		expect    uint64
@@ -145,7 +145,7 @@ func connect(server *serverHandler, serverId enode.ID, client *clientHandler, pr
 }
 
 // newTestServerPeer creates server peer.
-func newTestServerPeer(t *testing.T, blocks, protocol int, indexFn indexerCallback) (*testServer, *enode.Node, func()) {
+func newTestServerPeer(t *testing.T, blocks int, protocol int, indexFn indexerCallback) (*testServer, *enode.Node, func()) {
 	netconfig := testnetConfig{
 		blocks:    blocks,
 		protocol:  protocol,

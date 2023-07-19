@@ -151,7 +151,7 @@ func (d *Downloader) SetBadBlockCallback(onBadBlock badBlockFn) {
 //
 // Internally backfilling and state sync is done the same way, but the header
 // retrieval and scheduling is replaced.
-func (d *Downloader) BeaconSync(mode SyncMode, head, final *types.Header) error {
+func (d *Downloader) BeaconSync(mode SyncMode, head *types.Header, final *types.Header) error {
 	return d.beaconSync(mode, head, final, true)
 }
 
@@ -171,7 +171,7 @@ func (d *Downloader) BeaconExtend(mode SyncMode, head *types.Header) error {
 //
 // Internally backfilling and state sync is done the same way, but the header
 // retrieval and scheduling is replaced.
-func (d *Downloader) beaconSync(mode SyncMode, head, final *types.Header, force bool) error {
+func (d *Downloader) beaconSync(mode SyncMode, head *types.Header, final *types.Header, force bool) error {
 	// When the downloader starts a sync cycle, it needs to be aware of the sync
 	// mode to use (full, snap). To keep the skeleton chain oblivious, inject the
 	// mode into the backfiller directly.

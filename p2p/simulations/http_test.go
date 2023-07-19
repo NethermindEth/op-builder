@@ -204,7 +204,6 @@ func (t *testService) RunDum(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 		}
 	}
 }
-
 func (t *testService) RunPrb(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 	peer := t.peer(p.ID())
 
@@ -597,7 +596,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	network, s := testHTTPServer(t)
 	defer s.Close()
 
-	eventsDone := make(chan struct{}, 1)
+	var eventsDone = make(chan struct{}, 1)
 	count := 1
 	eventsDoneChan := make(chan *Event)
 	eventSub := network.Events().Subscribe(eventsDoneChan)

@@ -75,7 +75,7 @@ func isLittleEndian() bool {
 
 // memoryMap tries to memory map a file of uint32s for read only access.
 func memoryMap(path string, lock bool) (*os.File, mmap.MMap, []uint32, error) {
-	file, err := os.OpenFile(path, os.O_RDONLY, 0o644)
+	file, err := os.OpenFile(path, os.O_RDONLY, 0644)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -126,7 +126,7 @@ func memoryMapFile(file *os.File, write bool) (mmap.MMap, []uint32, error) {
 // path requested.
 func memoryMapAndGenerate(path string, size uint64, lock bool, generator func(buffer []uint32)) (*os.File, mmap.MMap, []uint32, error) {
 	// Ensure the data folder exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, nil, nil, err
 	}
 	// Create a huge temporary empty file to fill with data
@@ -243,7 +243,7 @@ func newCache(epoch uint64) *cache {
 }
 
 // generate ensures that the cache content is generated before use.
-func (c *cache) generate(dir string, limit int, lock, test bool) {
+func (c *cache) generate(dir string, limit int, lock bool, test bool) {
 	c.once.Do(func() {
 		size := cacheSize(c.epoch*epochLength + 1)
 		seed := seedHash(c.epoch*epochLength + 1)
@@ -323,7 +323,7 @@ func newDataset(epoch uint64) *dataset {
 }
 
 // generate ensures that the dataset content is generated before use.
-func (d *dataset) generate(dir string, limit int, lock, test bool) {
+func (d *dataset) generate(dir string, limit int, lock bool, test bool) {
 	d.once.Do(func() {
 		// Mark the dataset generated after we're done. This is needed for remote
 		defer atomic.StoreUint32(&d.done, 1)
@@ -664,7 +664,7 @@ func (ethash *Ethash) Hashrate() float64 {
 	if ethash.config.PowMode != ModeNormal && ethash.config.PowMode != ModeTest {
 		return ethash.hashrate.Rate1()
 	}
-	res := make(chan uint64, 1)
+	var res = make(chan uint64, 1)
 
 	select {
 	case ethash.remote.fetchRateCh <- res:

@@ -16,10 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	// Force-load the native, to trigger registration
-	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/tests"
+
+	// Force-load the native, to trigger registration
+	"github.com/ethereum/go-ethereum/eth/tracers"
 )
 
 // flatCallTrace is the result of a callTracerParity run.
@@ -69,7 +70,7 @@ type flatCallTracerTest struct {
 	Result       []flatCallTrace `json:"result"`
 }
 
-func flatCallTracerTestRunner(tracerName, filename, dirPath string, t testing.TB) error {
+func flatCallTracerTestRunner(tracerName string, filename string, dirPath string, t testing.TB) error {
 	// Call tracer test found, read if from disk
 	blob, err := os.ReadFile(filepath.Join("testdata", dirPath, filename))
 	if err != nil {
@@ -153,7 +154,7 @@ func TestFlatCallTracerNative(t *testing.T) {
 	testFlatCallTracer("flatCallTracer", "call_tracer_flat", t)
 }
 
-func testFlatCallTracer(tracerName, dirPath string, t *testing.T) {
+func testFlatCallTracer(tracerName string, dirPath string, t *testing.T) {
 	files, err := os.ReadDir(filepath.Join("testdata", dirPath))
 	if err != nil {
 		t.Fatalf("failed to retrieve tracer test suite: %v", err)

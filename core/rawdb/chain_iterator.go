@@ -92,7 +92,7 @@ type blockTxHashes struct {
 // number(s) given, and yields the hashes on a channel. If there is a signal
 // received from interrupt channel, the iteration will be aborted and result
 // channel will be closed.
-func iterateTransactions(db ethdb.Database, from, to uint64, reverse bool, interrupt chan struct{}) chan *blockTxHashes {
+func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *blockTxHashes {
 	// One thread sequentially reads data from db
 	type numberRlp struct {
 		number uint64
@@ -177,7 +177,7 @@ func iterateTransactions(db ethdb.Database, from, to uint64, reverse bool, inter
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func indexTransactions(db ethdb.Database, from, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
+func indexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	// short circuit for invalid range
 	if from >= to {
 		return
@@ -256,12 +256,12 @@ func indexTransactions(db ethdb.Database, from, to uint64, interrupt chan struct
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func IndexTransactions(db ethdb.Database, from, to uint64, interrupt chan struct{}) {
+func IndexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}) {
 	indexTransactions(db, from, to, interrupt, nil)
 }
 
 // indexTransactionsForTesting is the internal debug version with an additional hook.
-func indexTransactionsForTesting(db ethdb.Database, from, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
+func indexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	indexTransactions(db, from, to, interrupt, hook)
 }
 
@@ -269,7 +269,7 @@ func indexTransactionsForTesting(db ethdb.Database, from, to uint64, interrupt c
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func unindexTransactions(db ethdb.Database, from, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
+func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	// short circuit for invalid range
 	if from >= to {
 		return
@@ -344,11 +344,11 @@ func unindexTransactions(db ethdb.Database, from, to uint64, interrupt chan stru
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func UnindexTransactions(db ethdb.Database, from, to uint64, interrupt chan struct{}) {
+func UnindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}) {
 	unindexTransactions(db, from, to, interrupt, nil)
 }
 
 // unindexTransactionsForTesting is the internal debug version with an additional hook.
-func unindexTransactionsForTesting(db ethdb.Database, from, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
+func unindexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	unindexTransactions(db, from, to, interrupt, hook)
 }

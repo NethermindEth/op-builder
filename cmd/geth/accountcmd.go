@@ -41,6 +41,7 @@ It can be used non-interactively with the --password option taking a
 passwordfile as argument containing the wallet password in plaintext.`,
 		Subcommands: []*cli.Command{
 			{
+
 				Name:      "import",
 				Usage:     "Import Ethereum presale wallet",
 				ArgsUsage: "<keyFile>",
@@ -279,6 +280,7 @@ func accountCreate(ctx *cli.Context) error {
 	password := utils.GetPassPhraseWithList("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
 
 	account, err := keystore.StoreKey(keydir, password, scryptN, scryptP)
+
 	if err != nil {
 		utils.Fatalf("Failed to create account: %v", err)
 	}

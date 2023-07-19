@@ -177,8 +177,7 @@ Clef that the file is 'safe' to execute.`,
 		},
 		Description: `
 The setpw command stores a password for a given address (keyfile).
-`,
-	}
+`}
 	delCredentialCommand = &cli.Command{
 		Action:    removeCredential,
 		Name:      "delpw",
@@ -191,8 +190,7 @@ The setpw command stores a password for a given address (keyfile).
 		},
 		Description: `
 The delpw command removes a password for a given address (keyfile).
-`,
-	}
+`}
 	newAccountCommand = &cli.Command{
 		Action:    newAccount,
 		Name:      "newaccount",
@@ -207,16 +205,14 @@ The delpw command removes a password for a given address (keyfile).
 		Description: `
 The newaccount command creates a new keystore-backed account. It is a convenience-method
 which can be used in lieu of an external UI.
-`,
-	}
+`}
 	gendocCommand = &cli.Command{
 		Action: GenDoc,
 		Name:   "gendoc",
 		Usage:  "Generate documentation about json-rpc format",
 		Description: `
 The gendoc generates example structures of the json-rpc communication types.
-`,
-	}
+`}
 	listAccountsCommand = &cli.Command{
 		Action: listAccounts,
 		Name:   "list-accounts",
@@ -229,8 +225,7 @@ The gendoc generates example structures of the json-rpc communication types.
 		},
 		Description: `
 	Lists the accounts in the keystore.
-	`,
-	}
+	`}
 	listWalletsCommand = &cli.Command{
 		Action: listWallets,
 		Name:   "list-wallets",
@@ -243,8 +238,7 @@ The gendoc generates example structures of the json-rpc communication types.
 		},
 		Description: `
 	Lists the wallets known to Clef.
-	`,
-	}
+	`}
 	importRawCommand = &cli.Command{
 		Action:    accountImport,
 		Name:      "importraw",
@@ -261,8 +255,7 @@ Imports an unencrypted private key from <keyfile> and creates a new account.
 Prints the address.
 The keyfile is assumed to contain an unencrypted private key in hexadecimal format.
 The account is saved in encrypted format, you are prompted for a password.
-`,
-	}
+`}
 )
 
 var app = flags.NewApp("Manage Ethereum account operations")
@@ -293,8 +286,7 @@ func init() {
 		acceptFlag,
 	}
 	app.Action = signer
-	app.Commands = []*cli.Command{
-		initCommand,
+	app.Commands = []*cli.Command{initCommand,
 		attestCommand,
 		setCredentialCommand,
 		delCredentialCommand,
@@ -320,7 +312,7 @@ func initializeSecrets(c *cli.Context) error {
 	}
 	// Ensure the master key does not yet exist, we're not willing to overwrite
 	configDir := c.String(configdirFlag.Name)
-	if err := os.Mkdir(configDir, 0o700); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(configDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 	location := filepath.Join(configDir, "masterseed.json")
@@ -356,14 +348,14 @@ func initializeSecrets(c *cli.Context) error {
 		return fmt.Errorf("failed to encrypt master seed: %v", err)
 	}
 	// Double check the master key path to ensure nothing wrote there in between
-	if err = os.Mkdir(configDir, 0o700); err != nil && !os.IsExist(err) {
+	if err = os.Mkdir(configDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 	if _, err := os.Stat(location); err == nil {
 		return fmt.Errorf("master key %v already exists, will not overwrite", location)
 	}
 	// Write the file and print the usual warning message
-	if err = os.WriteFile(location, cipherSeed, 0o400); err != nil {
+	if err = os.WriteFile(location, cipherSeed, 0400); err != nil {
 		return err
 	}
 	fmt.Printf("A master seed has been generated into %s\n", location)
@@ -635,7 +627,9 @@ func signer(c *cli.Context) error {
 	if err := initialize(c); err != nil {
 		return err
 	}
-	var ui core.UIClientAPI
+	var (
+		ui core.UIClientAPI
+	)
 	if c.Bool(stdiouiFlag.Name) {
 		log.Info("Using stdin/stdout as UI-channel")
 		ui = core.NewStdIOUI()
@@ -785,8 +779,7 @@ func signer(c *cli.Context) error {
 			"extapi_version": core.ExternalAPIVersion,
 			"extapi_http":    extapiURL,
 			"extapi_ipc":     ipcapiURL,
-		},
-	})
+		}})
 
 	abortChan := make(chan os.Signal, 1)
 	signal.Notify(abortChan, os.Interrupt)
@@ -841,8 +834,7 @@ func readMasterKey(ctx *cli.Context, ui core.UIClientAPI) ([]byte, error) {
 		resp, err := ui.OnInputRequired(core.UserInputRequest{
 			Title:      "Master Password",
 			Prompt:     "Please enter the password to decrypt the master seed",
-			IsPassword: true,
-		})
+			IsPassword: true})
 		if err != nil {
 			return nil, err
 		}
@@ -859,7 +851,7 @@ func readMasterKey(ctx *cli.Context, ui core.UIClientAPI) ([]byte, error) {
 	}
 	// Create vault location
 	vaultLocation := filepath.Join(configDir, common.Bytes2Hex(crypto.Keccak256([]byte("vault"), masterSeed)[:10]))
-	err = os.Mkdir(vaultLocation, 0o700)
+	err = os.Mkdir(vaultLocation, 0700)
 	if err != nil && !os.IsExist(err) {
 		return nil, err
 	}
@@ -877,7 +869,7 @@ func checkFile(filename string) error {
 	// Check the unix permission bits
 	// However, on windows, we cannot use the unix perm-bits, see
 	// https://github.com/ethereum/go-ethereum/issues/20123
-	if runtime.GOOS != "windows" && info.Mode().Perm()&0o377 != 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0377 != 0 {
 		return fmt.Errorf("file (%v) has insecure file permissions (%v)", filename, info.Mode().String())
 	}
 	return nil
@@ -936,7 +928,7 @@ func testExternalUI(api *core.SignerAPI) {
 			addErr(fmt.Sprintf("%v: expected ErrRequestDenied, got %v", testcase, err))
 		}
 	}
-	delay := 1 * time.Second
+	var delay = 1 * time.Second
 	// Test display of info and error
 	{
 		api.UI.ShowInfo("If you see this message, enter 'yes' to next question")
@@ -1050,7 +1042,7 @@ type encryptedSeedStorage struct {
 
 // encryptSeed uses a similar scheme as the keystore uses, but with a different wrapping,
 // to encrypt the master seed
-func encryptSeed(seed, auth []byte, scryptN, scryptP int) ([]byte, error) {
+func encryptSeed(seed []byte, auth []byte, scryptN, scryptP int) ([]byte, error) {
 	cryptoStruct, err := keystore.EncryptDataV3(seed, auth, scryptN, scryptP)
 	if err != nil {
 		return nil, err
@@ -1110,8 +1102,7 @@ func GenDoc(ctx *cli.Context) error {
 			ContentType: accounts.MimetypeTextPlain,
 			Rawdata:     []byte(msg),
 			Messages:    messages,
-			Hash:        sighash,
-		})
+			Hash:        sighash})
 	}
 	{ // Sign plain text response
 		add("SignDataResponse - approve", "Response to SignDataRequest",
@@ -1146,15 +1137,13 @@ func GenDoc(ctx *cli.Context) error {
 				GasPrice: (*hexutil.Big)(big.NewInt(5)),
 				Gas:      1000,
 				Input:    nil,
-			},
-		})
+			}})
 	}
 	{ // Sign tx response
 		data := hexutil.Bytes([]byte{0x04, 0x03, 0x02, 0x01})
 		add("SignTxResponse - approve", "Response to request to sign a transaction. This response needs to contain the `transaction`"+
 			", because the UI is free to make modifications to the transaction.",
-			&core.SignTxResponse{
-				Approved: true,
+			&core.SignTxResponse{Approved: true,
 				Transaction: apitypes.SendTxArgs{
 					Data:     &data,
 					Nonce:    0x4,
@@ -1164,8 +1153,7 @@ func GenDoc(ctx *cli.Context) error {
 					GasPrice: (*hexutil.Big)(big.NewInt(5)),
 					Gas:      1000,
 					Input:    nil,
-				},
-			})
+				}})
 		add("SignTxResponse - deny", "Response to SignTxRequest. When denying a request, there's no need to "+
 			"provide the transaction in return",
 			&core.SignTxResponse{})
@@ -1204,8 +1192,7 @@ func GenDoc(ctx *cli.Context) error {
 				Meta: meta,
 				Accounts: []accounts.Account{
 					{Address: a, URL: accounts.URL{Scheme: "keystore", Path: "/path/to/keyfile/a"}},
-					{Address: b, URL: accounts.URL{Scheme: "keystore", Path: "/path/to/keyfile/b"}},
-				},
+					{Address: b, URL: accounts.URL{Scheme: "keystore", Path: "/path/to/keyfile/b"}}},
 			})
 
 		add("ListResponse", "Response to list request. The response contains a list of all addresses to show to the caller. "+
@@ -1219,8 +1206,7 @@ func GenDoc(ctx *cli.Context) error {
 					{
 						Address: common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff"),
 					},
-				},
-			})
+				}})
 	}
 
 	fmt.Println(`## UI Client interface

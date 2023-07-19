@@ -147,7 +147,7 @@ func NewAdminAPI(eth *Ethereum) *AdminAPI {
 
 // ExportChain exports the current blockchain into a local file,
 // or a range of blocks if first and last are non-nil.
-func (api *AdminAPI) ExportChain(file string, first, last *uint64) (bool, error) {
+func (api *AdminAPI) ExportChain(file string, first *uint64, last *uint64) (bool, error) {
 	if first == nil && last != nil {
 		return false, errors.New("last cannot be specified without first")
 	}
@@ -161,7 +161,7 @@ func (api *AdminAPI) ExportChain(file string, first, last *uint64) (bool, error)
 		return false, errors.New("location would overwrite an existing file")
 	}
 	// Make sure we can create the file to export into
-	out, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	out, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return false, err
 	}
@@ -559,7 +559,7 @@ func (api *DebugAPI) GetAccessibleState(from, to rpc.BlockNumber) (uint64, error
 		pivot = *p
 		log.Info("Found fast-sync pivot marker", "number", pivot)
 	}
-	resolveNum := func(num rpc.BlockNumber) (uint64, error) {
+	var resolveNum = func(num rpc.BlockNumber) (uint64, error) {
 		// We don't have state for pending (-2), so treat it as latest
 		if num.Int64() < 0 {
 			block := api.eth.blockchain.CurrentBlock()

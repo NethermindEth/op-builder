@@ -24,8 +24,10 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
-// triePrefetchMetricsPrefix is the prefix under which to publish the metrics.
-var triePrefetchMetricsPrefix = "trie/prefetch/"
+var (
+	// triePrefetchMetricsPrefix is the prefix under which to publish the metrics.
+	triePrefetchMetricsPrefix = "trie/prefetch/"
+)
 
 // triePrefetcher is an active prefetcher, which receives accounts or storage
 // items and does trie-loading of them. The goal is to get as much useful content
@@ -139,7 +141,7 @@ func (p *triePrefetcher) copy() *triePrefetcher {
 }
 
 // prefetch schedules a batch of trie items to prefetch.
-func (p *triePrefetcher) prefetch(owner, root common.Hash, keys [][]byte) {
+func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, keys [][]byte) {
 	// If the prefetcher is an inactive one, bail out
 	if p.fetches != nil {
 		return
@@ -156,7 +158,7 @@ func (p *triePrefetcher) prefetch(owner, root common.Hash, keys [][]byte) {
 
 // trie returns the trie matching the root hash, or nil if the prefetcher doesn't
 // have it.
-func (p *triePrefetcher) trie(owner, root common.Hash) Trie {
+func (p *triePrefetcher) trie(owner common.Hash, root common.Hash) Trie {
 	// If the prefetcher is inactive, return from existing deep copies
 	id := p.trieID(owner, root)
 	if p.fetches != nil {
@@ -187,14 +189,14 @@ func (p *triePrefetcher) trie(owner, root common.Hash) Trie {
 
 // used marks a batch of state items used to allow creating statistics as to
 // how useful or wasteful the prefetcher is.
-func (p *triePrefetcher) used(owner, root common.Hash, used [][]byte) {
+func (p *triePrefetcher) used(owner common.Hash, root common.Hash, used [][]byte) {
 	if fetcher := p.fetchers[p.trieID(owner, root)]; fetcher != nil {
 		fetcher.used = used
 	}
 }
 
 // trieID returns an unique trie identifier consists the trie owner and root hash.
-func (p *triePrefetcher) trieID(owner, root common.Hash) string {
+func (p *triePrefetcher) trieID(owner common.Hash, root common.Hash) string {
 	return string(append(owner.Bytes(), root.Bytes()...))
 }
 
@@ -224,7 +226,7 @@ type subfetcher struct {
 
 // newSubfetcher creates a goroutine to prefetch state items belonging to a
 // particular root hash.
-func newSubfetcher(db Database, state, owner, root common.Hash) *subfetcher {
+func newSubfetcher(db Database, state common.Hash, owner common.Hash, root common.Hash) *subfetcher {
 	sf := &subfetcher{
 		db:    db,
 		state: state,

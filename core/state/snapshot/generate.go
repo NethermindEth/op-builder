@@ -142,7 +142,7 @@ func (result *proofResult) last() []byte {
 
 // forEach iterates all the visited elements and applies the given callback on them.
 // The iteration is aborted if the callback returns non-nil error.
-func (result *proofResult) forEach(callback func(key, val []byte) error) error {
+func (result *proofResult) forEach(callback func(key []byte, val []byte) error) error {
 	for i := 0; i < len(result.keys); i++ {
 		key, val := result.keys[i], result.vals[i]
 		if err := callback(key, val); err != nil {
@@ -287,8 +287,7 @@ func (dl *diskLayer) proveRange(ctx *generatorContext, trieId *trie.ID, prefix [
 			diskMore: diskMore,
 			trieMore: cont,
 			proofErr: err,
-			tr:       tr,
-		},
+			tr:       tr},
 		nil
 }
 
@@ -303,7 +302,7 @@ func (dl *diskLayer) proveRange(ctx *generatorContext, trieId *trie.ID, prefix [
 // However, for accounts, the storage trie of the account needs to be checked. Also,
 // dangling storages(storage exists but the corresponding account is missing) need to
 // be cleaned up.
-type onStateCallback func(key, val []byte, write, delete bool) error
+type onStateCallback func(key []byte, val []byte, write bool, delete bool) error
 
 // generateRange generates the state segment with particular prefix. Generation can
 // either verify the correctness of existing state through range-proof and skip
@@ -331,7 +330,7 @@ func (dl *diskLayer) generateRange(ctx *generatorContext, trieId *trie.ID, prefi
 		// The verification is passed, process each state with the given
 		// callback function. If this state represents a contract, the
 		// corresponding storage check will be performed in the callback
-		if err := result.forEach(func(key, val []byte) error { return onState(key, val, false, false) }); err != nil {
+		if err := result.forEach(func(key []byte, val []byte) error { return onState(key, val, false, false) }); err != nil {
 			return false, nil, err
 		}
 		// Only abort the iteration when both database and trie are exhausted
@@ -509,8 +508,8 @@ func (dl *diskLayer) checkAndFlush(ctx *generatorContext, current []byte) error 
 
 // generateStorages generates the missing storage slots of the specific contract.
 // It's supposed to restart the generation from the given origin position.
-func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot, account, storageRoot common.Hash, storeMarker []byte) error {
-	onStorage := func(key, val []byte, write, delete bool) error {
+func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot common.Hash, account common.Hash, storageRoot common.Hash, storeMarker []byte) error {
+	onStorage := func(key []byte, val []byte, write bool, delete bool) error {
 		defer func(start time.Time) {
 			snapStorageWriteCounter.Inc(time.Since(start).Nanoseconds())
 		}(time.Now())
@@ -536,7 +535,7 @@ func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot, account, 
 		return nil
 	}
 	// Loop for re-generating the missing storage slots.
-	origin := common.CopyBytes(storeMarker)
+	var origin = common.CopyBytes(storeMarker)
 	for {
 		id := trie.StorageTrieID(stateRoot, account, storageRoot)
 		exhausted, last, err := dl.generateRange(ctx, id, append(rawdb.SnapshotStoragePrefix, account.Bytes()...), snapStorage, origin, storageCheckRange, onStorage, nil)
@@ -558,7 +557,7 @@ func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot, account, 
 // storage slots in the main trie. It's supposed to restart the generation
 // from the given origin position.
 func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) error {
-	onAccount := func(key, val []byte, write, delete bool) error {
+	onAccount := func(key []byte, val []byte, write bool, delete bool) error {
 		// Make sure to clear all dangling storages before this account
 		account := common.BytesToHash(key)
 		ctx.removeStorageBefore(account)
@@ -633,7 +632,7 @@ func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) er
 	}
 	// Always reset the initial account range as 1 whenever recover from the
 	// interruption. TODO(rjl493456442) can we remove it?
-	accountRange := accountCheckRange
+	var accountRange = accountCheckRange
 	if len(accMarker) > 0 {
 		accountRange = 1
 	}

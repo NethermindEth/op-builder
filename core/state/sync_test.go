@@ -145,23 +145,18 @@ func TestEmptyStateSync(t *testing.T) {
 func TestIterativeStateSyncIndividual(t *testing.T) {
 	testIterativeStateSync(t, 1, false, false)
 }
-
 func TestIterativeStateSyncBatched(t *testing.T) {
 	testIterativeStateSync(t, 100, false, false)
 }
-
 func TestIterativeStateSyncIndividualFromDisk(t *testing.T) {
 	testIterativeStateSync(t, 1, true, false)
 }
-
 func TestIterativeStateSyncBatchedFromDisk(t *testing.T) {
 	testIterativeStateSync(t, 100, true, false)
 }
-
 func TestIterativeStateSyncIndividualByPath(t *testing.T) {
 	testIterativeStateSync(t, 1, false, true)
 }
-
 func TestIterativeStateSyncBatchedByPath(t *testing.T) {
 	testIterativeStateSync(t, 100, false, true)
 }
@@ -174,7 +169,7 @@ type stateElement struct {
 	syncPath trie.SyncPath
 }
 
-func testIterativeStateSync(t *testing.T, count int, commit, bypath bool) {
+func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 	// Create a random state to copy
 	_, srcDb, srcRoot, srcAccounts := makeTestState()
 	if commit {
@@ -553,7 +548,7 @@ func TestIncompleteStateSync(t *testing.T) {
 	db, srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// isCodeLookup to save some hashing
-	isCode := make(map[common.Hash]struct{})
+	var isCode = make(map[common.Hash]struct{})
 	for _, acc := range srcAccounts {
 		if len(acc.code) > 0 {
 			isCode[crypto.Keccak256Hash(acc.code)] = struct{}{}

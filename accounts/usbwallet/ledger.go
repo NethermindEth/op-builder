@@ -178,7 +178,7 @@ func (w *ledgerDriver) SignTx(path accounts.DerivationPath, tx *types.Transactio
 // waiting for the user to sign or deny the transaction.
 //
 // Note: this was introduced in the ledger 1.5.0 firmware
-func (w *ledgerDriver) SignTypedMessage(path accounts.DerivationPath, domainHash, messageHash []byte) ([]byte, error) {
+func (w *ledgerDriver) SignTypedMessage(path accounts.DerivationPath, domainHash []byte, messageHash []byte) ([]byte, error) {
 	// If the Ethereum app doesn't run, abort
 	if w.offline() {
 		return nil, accounts.ErrWalletClosed
@@ -422,7 +422,7 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 //	signature V | 1 byte
 //	signature R | 32 bytes
 //	signature S | 32 bytes
-func (w *ledgerDriver) ledgerSignTypedMessage(derivationPath []uint32, domainHash, messageHash []byte) ([]byte, error) {
+func (w *ledgerDriver) ledgerSignTypedMessage(derivationPath []uint32, domainHash []byte, messageHash []byte) ([]byte, error) {
 	// Flatten the derivation path into the Ledger request
 	path := make([]byte, 1+4*len(derivationPath))
 	path[0] = byte(len(derivationPath))

@@ -599,7 +599,7 @@ func BenchmarkWriteAncientBlocks(b *testing.B) {
 	// The benchmark loop writes batches of blocks, but note that the total block count is
 	// b.N. This means the resulting ns/op measurement is the time it takes to write a
 	// single block and its associated data.
-	td := big.NewInt(55)
+	var td = big.NewInt(55)
 	var totalSize int64
 	for i := 0; i < b.N; i += batchSize {
 		length := batchSize
@@ -621,7 +621,7 @@ func BenchmarkWriteAncientBlocks(b *testing.B) {
 }
 
 // makeTestBlocks creates fake blocks for the ancient write benchmark.
-func makeTestBlocks(nblock, txsPerBlock int) []*types.Block {
+func makeTestBlocks(nblock int, txsPerBlock int) []*types.Block {
 	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	signer := types.LatestSignerForChainID(big.NewInt(8))
 
@@ -655,7 +655,7 @@ func makeTestBlocks(nblock, txsPerBlock int) []*types.Block {
 }
 
 // makeTestReceipts creates fake receipts for the ancient write benchmark.
-func makeTestReceipts(n, nPerBlock int) []types.Receipts {
+func makeTestReceipts(n int, nPerBlock int) []types.Receipts {
 	receipts := make([]*types.Receipt, nPerBlock)
 	for i := 0; i < len(receipts); i++ {
 		receipts[i] = &types.Receipt{

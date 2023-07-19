@@ -73,8 +73,7 @@ func testReceiveHeaders(t *testing.T, ln net.Listener, gethArgs ...string) {
 				t.Fatalf("missing header, have %v want %v", have, want)
 			}
 			atomic.StoreUint32(&ok, 1)
-		}},
-	}
+		}}}
 	go server.Serve(ln)
 	defer server.Close()
 	runGeth(t, gethArgs...).WaitExit()

@@ -86,8 +86,7 @@ var (
 	TupleF, _           = NewType("tuple", "struct Overloader.F", []ArgumentMarshaling{
 		{Name: "_f", Type: "uint256"},
 		{Name: "__f", Type: "uint256"},
-		{Name: "f", Type: "uint256"},
-	})
+		{Name: "f", Type: "uint256"}})
 )
 
 var methods = map[string]Method{
@@ -280,7 +279,7 @@ func TestOverloadedMethodSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check := func(name, expect string, method bool) {
+	check := func(name string, expect string, method bool) {
 		if method {
 			if abi.Methods[name].Sig != expect {
 				t.Fatalf("The signature of overloaded method mismatch, want %s, have %s", expect, abi.Methods[name].Sig)
@@ -303,7 +302,7 @@ func TestCustomErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check := func(name, expect string) {
+	check := func(name string, expect string) {
 		if abi.Errors[name].Sig != expect {
 			t.Fatalf("The signature of overloaded method mismatch, want %s, have %s", expect, abi.Methods[name].Sig)
 		}
@@ -879,12 +878,12 @@ func TestUnpackMethodIntoMap(t *testing.T) {
 
 func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	// Two methods have the same name
-	abiJSON := `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"get","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[],"name":"send","outputs":[{"name":"amount","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"addr","type":"address"}],"name":"get","outputs":[{"name":"hash","type":"bytes"}],"payable":true,"stateMutability":"payable","type":"function"}]`
+	var abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"get","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[],"name":"send","outputs":[{"name":"amount","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"addr","type":"address"}],"name":"get","outputs":[{"name":"hash","type":"bytes"}],"payable":true,"stateMutability":"payable","type":"function"}]`
 	abi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hexdata := `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
+	var hexdata = `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
 	data, err := hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -1138,7 +1137,7 @@ func TestUnnamedEventParam(t *testing.T) {
 func TestUnpackRevert(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
+	var cases = []struct {
 		input     string
 		expect    string
 		expectErr error

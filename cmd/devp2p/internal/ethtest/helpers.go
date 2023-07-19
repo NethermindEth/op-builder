@@ -280,7 +280,7 @@ func (c *Conn) snapRequest(msg Message, id uint64, chain *Chain) (Message, error
 }
 
 // headersMatch returns whether the received headers match the given request
-func headersMatch(expected, headers []*types.Header) bool {
+func headersMatch(expected []*types.Header, headers []*types.Header) bool {
 	return reflect.DeepEqual(expected, headers)
 }
 

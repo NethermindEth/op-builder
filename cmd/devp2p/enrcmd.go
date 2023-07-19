@@ -100,7 +100,7 @@ func dumpNodeURL(out io.Writer, n *enode.Node) {
 func dumpRecordKV(kv []interface{}, indent int) string {
 	// Determine the longest key name for alignment.
 	var out string
-	longestKey := 0
+	var longestKey = 0
 	for i := 0; i < len(kv); i += 2 {
 		key := kv[i].(string)
 		if len(key) > longestKey {

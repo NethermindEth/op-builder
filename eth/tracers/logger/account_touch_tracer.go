@@ -53,14 +53,14 @@ func (t *AccountTouchTracer) CaptureTxStart(uint64) {}
 
 func (t *AccountTouchTracer) CaptureTxEnd(uint64) {}
 
-func (t *AccountTouchTracer) CaptureStart(_ *vm.EVM, from, to common.Address, _ bool, _ []byte, _ uint64, _ *big.Int) {
+func (t *AccountTouchTracer) CaptureStart(_ *vm.EVM, from common.Address, to common.Address, _ bool, _ []byte, _ uint64, _ *big.Int) {
 	t.touched[from] = struct{}{}
 	t.touched[to] = struct{}{}
 }
 
 func (t *AccountTouchTracer) CaptureEnd([]byte, uint64, error) {}
 
-func (t *AccountTouchTracer) CaptureEnter(_ vm.OpCode, _, to common.Address, _ []byte, _ uint64, _ *big.Int) {
+func (t *AccountTouchTracer) CaptureEnter(_ vm.OpCode, _ common.Address, to common.Address, _ []byte, _ uint64, _ *big.Int) {
 	t.touched[to] = struct{}{}
 }
 

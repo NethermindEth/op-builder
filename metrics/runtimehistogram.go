@@ -54,11 +54,9 @@ func (h *runtimeHistogram) load() *runtimeHistogramSnapshot {
 func (h *runtimeHistogram) Clear() {
 	panic("runtimeHistogram does not support Clear")
 }
-
 func (h *runtimeHistogram) Update(int64) {
 	panic("runtimeHistogram does not support Update")
 }
-
 func (h *runtimeHistogram) Sample() Sample {
 	return NilSample{}
 }
@@ -118,11 +116,9 @@ type runtimeHistogramSnapshot metrics.Float64Histogram
 func (h *runtimeHistogramSnapshot) Clear() {
 	panic("runtimeHistogram does not support Clear")
 }
-
 func (h *runtimeHistogramSnapshot) Update(int64) {
 	panic("runtimeHistogram does not support Update")
 }
-
 func (h *runtimeHistogramSnapshot) Sample() Sample {
 	return NilSample{}
 }

@@ -131,9 +131,9 @@ func newFreezerTable(path, name string, disableSnappy, readonly bool) (*freezerT
 // newTable opens a freezer table, creating the data and index files if they are
 // non-existent. Both files are truncated to the shortest common length to ensure
 // they don't go out of sync.
-func newTable(path, name string, readMeter, writeMeter metrics.Meter, sizeGauge metrics.Gauge, maxFilesize uint32, noCompression, readonly bool) (*freezerTable, error) {
+func newTable(path string, name string, readMeter metrics.Meter, writeMeter metrics.Meter, sizeGauge metrics.Gauge, maxFilesize uint32, noCompression, readonly bool) (*freezerTable, error) {
 	// Ensure the containing directory exists and open the indexEntry file
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, err
 	}
 	var idxName string
@@ -559,7 +559,7 @@ func (t *freezerTable) Close() error {
 	defer t.lock.Unlock()
 
 	var errs []error
-	doClose := func(f *os.File, sync, close bool) {
+	doClose := func(f *os.File, sync bool, close bool) {
 		if sync && !t.readonly {
 			if err := f.Sync(); err != nil {
 				errs = append(errs, err)

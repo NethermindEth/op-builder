@@ -145,7 +145,7 @@ type snapshot interface {
 	AccountIterator(seek common.Hash) AccountIterator
 
 	// StorageIterator creates a storage iterator over an arbitrary layer.
-	StorageIterator(account, seek common.Hash) (StorageIterator, bool)
+	StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool)
 }
 
 // Config includes the configurations for snapshots.
@@ -340,7 +340,7 @@ func (t *Tree) Snapshots(root common.Hash, limits int, nodisk bool) []Snapshot {
 
 // Update adds a new snapshot into the tree, if that can be linked to an existing
 // old parent. It is disallowed to insert a disk layer (the origin of all).
-func (t *Tree) Update(blockRoot, parentRoot common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error {
+func (t *Tree) Update(blockRoot common.Hash, parentRoot common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error {
 	// Reject noop updates to avoid self-loops in the snapshot tree. This is a
 	// special case that can only happen for Clique networks where empty blocks
 	// don't modify the state (0 block subsidy).
@@ -743,7 +743,7 @@ func (t *Tree) Rebuild(root common.Hash) {
 
 // AccountIterator creates a new account iterator for the specified root hash and
 // seeks to a starting account hash.
-func (t *Tree) AccountIterator(root, seek common.Hash) (AccountIterator, error) {
+func (t *Tree) AccountIterator(root common.Hash, seek common.Hash) (AccountIterator, error) {
 	ok, err := t.generating()
 	if err != nil {
 		return nil, err
@@ -756,7 +756,7 @@ func (t *Tree) AccountIterator(root, seek common.Hash) (AccountIterator, error) 
 
 // StorageIterator creates a new storage iterator for the specified root hash and
 // account. The iterator will be move to the specific start position.
-func (t *Tree) StorageIterator(root, account, seek common.Hash) (StorageIterator, error) {
+func (t *Tree) StorageIterator(root common.Hash, account common.Hash, seek common.Hash) (StorageIterator, error) {
 	ok, err := t.generating()
 	if err != nil {
 		return nil, err
@@ -789,6 +789,7 @@ func (t *Tree) Verify(root common.Hash) error {
 		}
 		return hash, nil
 	}, newGenerateStats(), true)
+
 	if err != nil {
 		return err
 	}

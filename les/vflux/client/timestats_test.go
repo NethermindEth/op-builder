@@ -26,8 +26,8 @@ import (
 )
 
 func TestTransition(t *testing.T) {
-	epsilon := 0.01
-	cases := []time.Duration{
+	var epsilon = 0.01
+	var cases = []time.Duration{
 		time.Millisecond, minResponseTime,
 		time.Second, time.Second * 5, maxResponseTime,
 	}

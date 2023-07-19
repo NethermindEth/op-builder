@@ -42,14 +42,14 @@ import (
 func TestHashing(t *testing.T) {
 	t.Parallel()
 
-	bytecodes := make([][]byte, 10)
+	var bytecodes = make([][]byte, 10)
 	for i := 0; i < len(bytecodes); i++ {
 		buf := make([]byte, 100)
 		rand.Read(buf)
 		bytecodes[i] = buf
 	}
 	var want, got string
-	old := func() {
+	var old = func() {
 		hasher := sha3.NewLegacyKeccak256()
 		for i := 0; i < len(bytecodes); i++ {
 			hasher.Reset()
@@ -58,9 +58,9 @@ func TestHashing(t *testing.T) {
 			got = fmt.Sprintf("%v\n%v", got, hash)
 		}
 	}
-	new := func() {
+	var new = func() {
 		hasher := sha3.NewLegacyKeccak256().(crypto.KeccakState)
-		hash := make([]byte, 32)
+		var hash = make([]byte, 32)
 		for i := 0; i < len(bytecodes); i++ {
 			hasher.Reset()
 			hasher.Write(bytecodes[i])
@@ -76,13 +76,13 @@ func TestHashing(t *testing.T) {
 }
 
 func BenchmarkHashing(b *testing.B) {
-	bytecodes := make([][]byte, 10000)
+	var bytecodes = make([][]byte, 10000)
 	for i := 0; i < len(bytecodes); i++ {
 		buf := make([]byte, 100)
 		rand.Read(buf)
 		bytecodes[i] = buf
 	}
-	old := func() {
+	var old = func() {
 		hasher := sha3.NewLegacyKeccak256()
 		for i := 0; i < len(bytecodes); i++ {
 			hasher.Reset()
@@ -90,9 +90,9 @@ func BenchmarkHashing(b *testing.B) {
 			hasher.Sum(nil)
 		}
 	}
-	new := func() {
+	var new = func() {
 		hasher := sha3.NewLegacyKeccak256().(crypto.KeccakState)
-		hash := make([]byte, 32)
+		var hash = make([]byte, 32)
 		for i := 0; i < len(bytecodes); i++ {
 			hasher.Reset()
 			hasher.Write(bytecodes[i])
@@ -114,7 +114,7 @@ func BenchmarkHashing(b *testing.B) {
 }
 
 type (
-	accountHandlerFunc func(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error
+	accountHandlerFunc func(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error
 	storageHandlerFunc func(t *testPeer, requestId uint64, root common.Hash, accounts []common.Hash, origin, limit []byte, max uint64) error
 	trieHandlerFunc    func(t *testPeer, requestId uint64, root common.Hash, paths []TrieNodePathSet, cap uint64) error
 	codeHandlerFunc    func(t *testPeer, id uint64, hashes []common.Hash, max uint64) error
@@ -154,8 +154,8 @@ func newTestPeer(id string, t *testing.T, term func()) *testPeer {
 		codeRequestHandler:    defaultCodeRequestHandler,
 		term:                  term,
 	}
-	// stderrHandler := log.StreamHandler(os.Stderr, log.TerminalFormat(true))
-	// peer.logger.SetHandler(stderrHandler)
+	//stderrHandler := log.StreamHandler(os.Stderr, log.TerminalFormat(true))
+	//peer.logger.SetHandler(stderrHandler)
 	return peer
 }
 
@@ -239,7 +239,7 @@ func defaultTrieRequestHandler(t *testPeer, requestId uint64, root common.Hash, 
 }
 
 // defaultAccountRequestHandler is a well-behaving handler for AccountRangeRequests
-func defaultAccountRequestHandler(t *testPeer, id uint64, root, origin, limit common.Hash, cap uint64) error {
+func defaultAccountRequestHandler(t *testPeer, id uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 	keys, vals, proofs := createAccountRequestResponse(t, root, origin, limit, cap)
 	if err := t.remote.OnAccounts(t, id, keys, vals, proofs); err != nil {
 		t.test.Errorf("Remote side rejected our delivery: %v", err)
@@ -249,7 +249,7 @@ func defaultAccountRequestHandler(t *testPeer, id uint64, root, origin, limit co
 	return nil
 }
 
-func createAccountRequestResponse(t *testPeer, root, origin, limit common.Hash, cap uint64) (keys []common.Hash, vals, proofs [][]byte) {
+func createAccountRequestResponse(t *testPeer, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) (keys []common.Hash, vals [][]byte, proofs [][]byte) {
 	var size uint64
 	if limit == (common.Hash{}) {
 		limit = common.HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
@@ -317,7 +317,7 @@ func createStorageRequestResponse(t *testPeer, root common.Hash, accounts []comm
 		if len(origin) > 0 {
 			originHash = common.BytesToHash(origin)
 		}
-		limitHash := common.HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+		var limitHash = common.HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 		if len(limit) > 0 {
 			limitHash = common.BytesToHash(limit)
 		}
@@ -435,12 +435,12 @@ func createStorageRequestResponseAlwaysProve(t *testPeer, root common.Hash, acco
 }
 
 // emptyRequestAccountRangeFn is a rejects AccountRangeRequests
-func emptyRequestAccountRangeFn(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error {
+func emptyRequestAccountRangeFn(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 	t.remote.OnAccounts(t, requestId, nil, nil, nil)
 	return nil
 }
 
-func nonResponsiveRequestAccountRangeFn(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error {
+func nonResponsiveRequestAccountRangeFn(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 	return nil
 }
 
@@ -509,7 +509,7 @@ func starvingStorageRequestHandler(t *testPeer, requestId uint64, root common.Ha
 	return defaultStorageRequestHandler(t, requestId, root, accounts, origin, limit, 500)
 }
 
-func starvingAccountRequestHandler(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error {
+func starvingAccountRequestHandler(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 	return defaultAccountRequestHandler(t, requestId, root, origin, limit, 500)
 }
 
@@ -517,7 +517,7 @@ func starvingAccountRequestHandler(t *testPeer, requestId uint64, root, origin, 
 //	return defaultAccountRequestHandler(t, requestId-1, root, origin, 500)
 //}
 
-func corruptAccountRequestHandler(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error {
+func corruptAccountRequestHandler(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 	hashes, accounts, proofs := createAccountRequestResponse(t, root, origin, limit, cap)
 	if len(proofs) > 0 {
 		proofs = proofs[1:]
@@ -574,7 +574,7 @@ func TestSyncBloatedProof(t *testing.T) {
 	source.accountTrie = sourceAccountTrie.Copy()
 	source.accountValues = elems
 
-	source.accountRequestHandler = func(t *testPeer, requestId uint64, root, origin, limit common.Hash, cap uint64) error {
+	source.accountRequestHandler = func(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
 		var (
 			proofs [][]byte
 			keys   []common.Hash
@@ -1333,16 +1333,18 @@ func key32(i uint64) []byte {
 	return key
 }
 
-var codehashes = []common.Hash{
-	crypto.Keccak256Hash([]byte{0}),
-	crypto.Keccak256Hash([]byte{1}),
-	crypto.Keccak256Hash([]byte{2}),
-	crypto.Keccak256Hash([]byte{3}),
-	crypto.Keccak256Hash([]byte{4}),
-	crypto.Keccak256Hash([]byte{5}),
-	crypto.Keccak256Hash([]byte{6}),
-	crypto.Keccak256Hash([]byte{7}),
-}
+var (
+	codehashes = []common.Hash{
+		crypto.Keccak256Hash([]byte{0}),
+		crypto.Keccak256Hash([]byte{1}),
+		crypto.Keccak256Hash([]byte{2}),
+		crypto.Keccak256Hash([]byte{3}),
+		crypto.Keccak256Hash([]byte{4}),
+		crypto.Keccak256Hash([]byte{5}),
+		crypto.Keccak256Hash([]byte{6}),
+		crypto.Keccak256Hash([]byte{7}),
+	}
+)
 
 // getCodeHash returns a pseudo-random code hash
 func getCodeHash(i uint64) []byte {

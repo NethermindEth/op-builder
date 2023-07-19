@@ -35,12 +35,14 @@ var DeprecatedFlags = []cli.Flag{
 	NoUSBFlag,
 }
 
-// (Deprecated May 2020, shown in aliased flags section)
-var NoUSBFlag = &cli.BoolFlag{
-	Name:     "nousb",
-	Usage:    "Disables monitoring for and managing USB hardware wallets (deprecated)",
-	Category: flags.DeprecatedCategory,
-}
+var (
+	// (Deprecated May 2020, shown in aliased flags section)
+	NoUSBFlag = &cli.BoolFlag{
+		Name:     "nousb",
+		Usage:    "Disables monitoring for and managing USB hardware wallets (deprecated)",
+		Category: flags.DeprecatedCategory,
+	}
+)
 
 // showDeprecated displays deprecated flags that will be soon removed from the codebase.
 func showDeprecated(*cli.Context) error {

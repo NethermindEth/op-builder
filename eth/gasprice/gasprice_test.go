@@ -188,7 +188,7 @@ func TestSuggestTipCap(t *testing.T) {
 		Percentile: 60,
 		Default:    big.NewInt(params.GWei),
 	}
-	cases := []struct {
+	var cases = []struct {
 		fork   *big.Int // London fork number
 		expect *big.Int // Expected gasprice suggestion
 	}{

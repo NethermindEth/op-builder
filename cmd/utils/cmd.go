@@ -264,7 +264,7 @@ func ExportChain(blockchain *core.BlockChain, fn string) error {
 
 // ExportAppendChain exports a blockchain into the specified file, appending to
 // the file if data already exists in it.
-func ExportAppendChain(blockchain *core.BlockChain, fn string, first, last uint64) error {
+func ExportAppendChain(blockchain *core.BlockChain, fn string, first uint64, last uint64) error {
 	log.Info("Exporting blockchain", "file", fn)
 
 	// Open the file handle and potentially wrap with a gzip stream
@@ -502,7 +502,7 @@ type ChainDataIterator interface {
 
 // ExportChaindata exports the given data type (truncating any data already present)
 // in the file. If the suffix is 'gz', gzip compression is used.
-func ExportChaindata(fn, kind string, iter ChainDataIterator, interrupt chan struct{}) error {
+func ExportChaindata(fn string, kind string, iter ChainDataIterator, interrupt chan struct{}) error {
 	log.Info("Exporting chain data", "file", fn, "kind", kind)
 	defer iter.Release()
 

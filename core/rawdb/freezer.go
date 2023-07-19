@@ -81,7 +81,7 @@ type Freezer struct {
 
 // NewChainFreezer is a small utility method around NewFreezer that sets the
 // default parameters for the chain storage.
-func NewChainFreezer(datadir, namespace string, readonly bool) (*Freezer, error) {
+func NewChainFreezer(datadir string, namespace string, readonly bool) (*Freezer, error) {
 	return NewFreezer(datadir, namespace, readonly, freezerTableSize, chainFreezerNoSnappy)
 }
 
@@ -90,7 +90,7 @@ func NewChainFreezer(datadir, namespace string, readonly bool) (*Freezer, error)
 //
 // The 'tables' argument defines the data tables. If the value of a map
 // entry is true, snappy compression is disabled for the table.
-func NewFreezer(datadir, namespace string, readonly bool, maxTableSize uint32, tables map[string]bool) (*Freezer, error) {
+func NewFreezer(datadir string, namespace string, readonly bool, maxTableSize uint32, tables map[string]bool) (*Freezer, error) {
 	// Create the initial freezer object
 	var (
 		readMeter  = metrics.NewRegisteredMeter(namespace+"ancient/read", nil)
@@ -105,7 +105,7 @@ func NewFreezer(datadir, namespace string, readonly bool, maxTableSize uint32, t
 		}
 	}
 	flockFile := filepath.Join(datadir, "FLOCK")
-	if err := os.MkdirAll(filepath.Dir(flockFile), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(flockFile), 0755); err != nil {
 		return nil, err
 	}
 	// Leveldb uses LOCK as the filelock filename. To prevent the

@@ -48,7 +48,7 @@ var wsBufferPool = new(sync.Pool)
 // allowedOrigins should be a comma-separated list of allowed origin URLs.
 // To allow connections with any origin, pass "*".
 func (s *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
-	upgrader := websocket.Upgrader{
+	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  wsReadBuffer,
 		WriteBufferSize: wsWriteBuffer,
 		WriteBufferPool: wsBufferPool,
@@ -132,7 +132,7 @@ func originIsAllowed(allowedOrigins mapset.Set[string], browserOrigin string) bo
 	return false
 }
 
-func ruleAllowsOrigin(allowedOrigin, browserOrigin string) bool {
+func ruleAllowsOrigin(allowedOrigin string, browserOrigin string) bool {
 	var (
 		allowedScheme, allowedHostname, allowedPort string
 		browserScheme, browserHostname, browserPort string
@@ -333,7 +333,7 @@ func (wc *websocketCodec) writeJSON(ctx context.Context, v interface{}, isError 
 
 // pingLoop sends periodic ping frames when the connection is idle.
 func (wc *websocketCodec) pingLoop() {
-	timer := time.NewTimer(wsPingInterval)
+	var timer = time.NewTimer(wsPingInterval)
 	defer wc.wg.Done()
 	defer timer.Stop()
 

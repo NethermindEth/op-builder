@@ -134,7 +134,7 @@ func (c *Chain) GetHeaders(req *GetBlockHeaders) ([]*types.Header, error) {
 
 // loadChain takes the given chain.rlp file, and decodes and returns
 // the blocks from the file.
-func loadChain(chainfile, genesis string) (*Chain, error) {
+func loadChain(chainfile string, genesis string) (*Chain, error) {
 	gen, err := loadGenesis(genesis)
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func blocksFromFile(chainfile string, gblock *types.Block) ([]*types.Block, erro
 		}
 	}
 	stream := rlp.NewStream(reader, 0)
-	blocks := make([]*types.Block, 1)
+	var blocks = make([]*types.Block, 1)
 	blocks[0] = gblock
 	for i := 0; ; i++ {
 		var b types.Block

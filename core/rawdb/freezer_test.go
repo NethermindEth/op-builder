@@ -188,7 +188,7 @@ func TestFreezerConcurrentModifyTruncate(t *testing.T) {
 	f, _ := newFreezerForTesting(t, freezerTestTableDef)
 	defer f.Close()
 
-	item := make([]byte, 256)
+	var item = make([]byte, 256)
 
 	for i := 0; i < 10; i++ {
 		// First reset and write 100 items.
@@ -258,7 +258,7 @@ func TestFreezerReadonlyValidate(t *testing.T) {
 	if err != nil {
 		t.Fatal("can't open freezer", err)
 	}
-	item := make([]byte, 1024)
+	var item = make([]byte, 1024)
 	aBatch := f.tables["a"].newBatch()
 	require.NoError(t, aBatch.AppendRaw(0, item))
 	require.NoError(t, aBatch.AppendRaw(1, item))

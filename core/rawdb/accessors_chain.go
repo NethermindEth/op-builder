@@ -112,7 +112,7 @@ func ReadAllHashesInRange(db ethdb.Iteratee, first, last uint64) []*NumberHash {
 // ReadAllCanonicalHashes retrieves all canonical number and hash mappings at the
 // certain chain range. If the accumulated entries reaches the given threshold,
 // abort the iteration and return the semi-finish result.
-func ReadAllCanonicalHashes(db ethdb.Iteratee, from, to uint64, limit int) ([]uint64, []common.Hash) {
+func ReadAllCanonicalHashes(db ethdb.Iteratee, from uint64, to uint64, limit int) ([]uint64, []common.Hash) {
 	// Short circuit if the limit is 0.
 	if limit == 0 {
 		return nil, nil
@@ -303,7 +303,7 @@ func WriteFastTxLookupLimit(db ethdb.KeyValueWriter, number uint64) {
 //
 // N.B: Since the input is a number, as opposed to a hash, it's implicit that
 // this method only operates on canon headers.
-func ReadHeaderRange(db ethdb.Reader, number, count uint64) []rlp.RawValue {
+func ReadHeaderRange(db ethdb.Reader, number uint64, count uint64) []rlp.RawValue {
 	var rlpHeaders []rlp.RawValue
 	if count == 0 {
 		return rlpHeaders

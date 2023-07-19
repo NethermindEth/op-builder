@@ -152,7 +152,7 @@ func (st *StackTrie) unmarshalBinary(r io.Reader) error {
 	st.val = dec.Val
 	st.key = dec.Key
 
-	hasChild := make([]byte, 1)
+	var hasChild = make([]byte, 1)
 	for i := range st.children {
 		if _, err := r.Read(hasChild); err != nil {
 			return err
@@ -243,7 +243,7 @@ func (st *StackTrie) getDiffIndex(key []byte) int {
 
 // Helper function to that inserts a (key, value) pair into
 // the trie.
-func (st *StackTrie) insert(key, value, prefix []byte) {
+func (st *StackTrie) insert(key, value []byte, prefix []byte) {
 	switch st.nodeType {
 	case branchNode: /* Branch */
 		idx := int(key[0])
