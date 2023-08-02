@@ -238,7 +238,7 @@ func (b *Builder) submitBellatrixBlock(block *types.Block, blockValue *big.Int, 
 		BlockHash:            payload.BlockHash,
 		BuilderPubkey:        b.builderPublicKey,
 		ProposerPubkey:       proposerPubkey,
-		ProposerFeeRecipient: vd.FeeRecipient,
+		ProposerFeeRecipient: bellatrix.ExecutionAddress(attrs.SuggestedFeeRecipient),
 		GasLimit:             executableData.ExecutionPayload.GasLimit,
 		GasUsed:              executableData.ExecutionPayload.GasUsed,
 		Value:                value,
@@ -257,13 +257,13 @@ func (b *Builder) submitBellatrixBlock(block *types.Block, blockValue *big.Int, 
 	}
 
 	if b.dryRun {
-		err = b.validator.ValidateBuilderSubmissionV1(&blockvalidation.BuilderBlockValidationRequest{SubmitBlockRequest: blockSubmitReq, RegisteredGasLimit: vd.GasLimit})
+		err = b.validator.ValidateBuilderSubmissionV1(&blockvalidation.BuilderBlockValidationRequest{SubmitBlockRequest: blockSubmitReq, RegisteredGasLimit: attrs.GasLimit})
 		if err != nil {
 			log.Error("could not validate bellatrix block", "err", err)
 		}
 	} else {
 		go b.ds.ConsumeBuiltBlock(block, blockValue, ordersClosedAt, sealedAt, commitedBundles, allBundles, usedSbundles, &blockBidMsg)
-		err = b.relay.SubmitBlock(&blockSubmitReq, vd)
+		err = b.relay.SubmitBlock(&blockSubmitReq, ValidatorData{})
 		if err != nil {
 			log.Error("could not submit bellatrix block", "err", err, "#commitedBundles", len(commitedBundles))
 			return err
@@ -297,7 +297,7 @@ func (b *Builder) submitCapellaBlock(block *types.Block, blockValue *big.Int, or
 		BlockHash:            payload.BlockHash,
 		BuilderPubkey:        b.builderPublicKey,
 		ProposerPubkey:       proposerPubkey,
-		ProposerFeeRecipient: vd.FeeRecipient,
+		ProposerFeeRecipient: bellatrix.ExecutionAddress(attrs.SuggestedFeeRecipient),
 		GasLimit:             executableData.ExecutionPayload.GasLimit,
 		GasUsed:              executableData.ExecutionPayload.GasUsed,
 		Value:                value,
@@ -338,18 +338,19 @@ func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) erro
 		return nil
 	}
 
-	vd, err := b.relay.GetValidatorForSlot(attrs.Slot)
-	if err != nil {
-		return fmt.Errorf("could not get validator while submitting block for slot %d - %w", attrs.Slot, err)
-	}
-
-	attrs.SuggestedFeeRecipient = [20]byte(vd.FeeRecipient)
-	attrs.GasLimit = vd.GasLimit
-
-	proposerPubkey, err := utils.HexToPubkey(string(vd.Pubkey))
-	if err != nil {
-		return fmt.Errorf("could not parse pubkey (%s) - %w", vd.Pubkey, err)
-	}
+	proposerPubkey, vd := phase0.BLSPubKey{}, ValidatorData{}
+	// vd, err := b.relay.GetValidatorForSlot(attrs.Slot)
+	// if err != nil {
+	// 	return fmt.Errorf("could not get validator while submitting block for slot %d - %w", attrs.Slot, err)
+	// }
+	//
+	// attrs.SuggestedFeeRecipient = [20]byte(vd.FeeRecipient)
+	// attrs.GasLimit = vd.GasLimit
+	//
+	// proposerPubkey, err := utils.HexToPubkey(string(vd.Pubkey))
+	// if err != nil {
+	// 	return fmt.Errorf("could not parse pubkey (%s) - %w", vd.Pubkey, err)
+	// }
 
 	if !b.eth.Synced() {
 		return errors.New("backend not Synced")
@@ -372,7 +373,7 @@ func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) erro
 		b.slotCtxCancel()
 	}
 
-	slotCtx, slotCtxCancel := context.WithTimeout(context.Background(), 12*time.Second)
+	slotCtx, slotCtxCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	b.slotAttrs = *attrs
 	b.slotCtx = slotCtx
 	b.slotCtxCancel = slotCtxCancel
@@ -392,7 +393,7 @@ type blockQueueEntry struct {
 }
 
 func (b *Builder) runBuildingJob(slotCtx context.Context, proposerPubkey phase0.BLSPubKey, vd ValidatorData, attrs *types.BuilderPayloadAttributes) {
-	ctx, cancel := context.WithTimeout(slotCtx, 12*time.Second)
+	ctx, cancel := context.WithTimeout(slotCtx, 2*time.Second)
 	defer cancel()
 
 	// Submission queue for the given payload attributes

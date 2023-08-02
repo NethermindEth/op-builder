@@ -17,7 +17,6 @@ import (
 	capellaapi "github.com/attestantio/go-builder-client/api/capella"
 	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
-	apiv1bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -303,58 +302,31 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	payload := new(apiv1bellatrix.SignedBlindedBeaconBlock)
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		log.Error("failed to decode payload", "error", err)
-		respondError(w, http.StatusBadRequest, "invalid payload")
+	vars := mux.Vars(req)
+	slot, err := strconv.Atoi(vars["slot"])
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "incorrect slot")
 		return
 	}
+	parentHashHex := vars["parent_hash"]
+	//pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
 
-	if len(payload.Signature) != 96 {
-		respondError(w, http.StatusBadRequest, "invalid signature")
-		return
-	}
-
-	nextSlotProposerPubkeyHex, err := r.beaconClient.getProposerForNextSlot(uint64(payload.Message.Slot))
-	if err != nil {
-		if r.enableBeaconChecks {
-			respondError(w, http.StatusBadRequest, "unknown validator")
-			return
-		}
-	}
-
-	nextSlotProposerPubkeyBytes, err := hexutil.Decode(string(nextSlotProposerPubkeyHex))
-	if err != nil {
-		if r.enableBeaconChecks {
-			respondError(w, http.StatusBadRequest, "unknown validator")
-			return
-		}
-	}
-
-	ok, err := ssz.VerifySignature(payload.Message, r.proposerSigningDomain, nextSlotProposerPubkeyBytes[:], payload.Signature[:])
-	if !ok || err != nil {
-		if r.enableBeaconChecks {
-			respondError(w, http.StatusBadRequest, "invalid signature")
-			return
-		}
-	}
+	// We don't need to check validators duties or proposer key here
 
 	r.bestDataLock.Lock()
 	bestHeader := r.bestHeader
 	bestPayload := r.bestPayload
 	r.bestDataLock.Unlock()
 
-	log.Info("Received blinded block", "payload", payload, "bestHeader", bestHeader)
-
-	if bestHeader == nil || bestPayload == nil {
-		respondError(w, http.StatusInternalServerError, "no payloads")
+	if bestPayload == nil || bestHeader == nil || bestHeader.ParentHash.String() != parentHashHex {
+		respondError(w, http.StatusBadRequest, "unknown header / payload")
 		return
 	}
+	log.Info("Got best header", "slot", slot, "bestHeader", bestHeader)
 
-	if !ExecutionPayloadHeaderEqual(bestHeader, payload.Message.Body.ExecutionPayloadHeader) {
-		respondError(w, http.StatusBadRequest, "unknown payload")
-		return
-	}
+	// seek no proposer for a slot or signature verification here
+
+	// skip check: !ExecutionPayloadHeaderEqual(bestHeader, payload.Message.Body.ExecutionPayloadHeader)
 
 	response := &api.VersionedExecutionPayload{
 		Version:   consensusspec.DataVersionBellatrix,

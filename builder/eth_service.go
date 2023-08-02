@@ -62,6 +62,9 @@ func (s *EthereumService) BuildBlock(attrs *types.BuilderPayloadAttributes, seal
 		Random:       attrs.Random,
 		Withdrawals:  attrs.Withdrawals,
 		BlockHook:    sealedBlockCallback,
+
+		NoTxPool:     false,
+		Transactions: attrs.Transactions,
 	}
 
 	payload, err := s.eth.Miner().BuildPayload(args)
