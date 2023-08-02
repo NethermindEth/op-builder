@@ -157,7 +157,8 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 	if len(cfg.BeaconEndpoints) == 0 {
 		beaconClient = &NilBeaconClient{}
 	} else if len(cfg.BeaconEndpoints) == 1 {
-		beaconClient = NewBeaconClient(cfg.BeaconEndpoints[0], cfg.SlotsInEpoch, cfg.SecondsInSlot)
+		// beaconClient = NewBeaconClient(cfg.BeaconEndpoints[0], cfg.SlotsInEpoch, cfg.SecondsInSlot)
+		beaconClient = NewOpBeaconClient(cfg.BeaconEndpoints[0])
 	} else {
 		beaconClient = NewMultiBeaconClient(cfg.BeaconEndpoints, cfg.SlotsInEpoch, cfg.SecondsInSlot)
 	}
