@@ -30,7 +30,7 @@ const (
 	_PathStatus            = "/eth/v1/builder/status"
 	_PathRegisterValidator = "/eth/v1/builder/validators"
 	_PathGetHeader         = "/eth/v1/builder/header/{slot:[0-9]+}/{parent_hash:0x[a-fA-F0-9]+}/{pubkey:0x[a-fA-F0-9]+}"
-	_PathGetPayload        = "/eth/v1/builder/blinded_blocks"
+	_PathGetPayload        = "/eth/v1/builder/get_payload/{slot:[0-9]+}/{parent_hash:0x[a-fA-F0-9]+}"
 )
 
 type Service struct {
@@ -69,7 +69,7 @@ func getRouter(localRelay *LocalRelay) http.Handler {
 	router.HandleFunc(_PathStatus, localRelay.handleStatus).Methods(http.MethodGet)
 	router.HandleFunc(_PathRegisterValidator, localRelay.handleRegisterValidator).Methods(http.MethodPost)
 	router.HandleFunc(_PathGetHeader, localRelay.handleGetHeader).Methods(http.MethodGet)
-	router.HandleFunc(_PathGetPayload, localRelay.handleGetPayload).Methods(http.MethodPost)
+	router.HandleFunc(_PathGetPayload, localRelay.handleGetPayload).Methods(http.MethodGet)
 
 	// Add logging and return router
 	loggedRouter := httplogger.LoggingMiddleware(router)
