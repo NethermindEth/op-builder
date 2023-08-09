@@ -431,7 +431,7 @@ type OpBeaconClient struct {
 
 func NewOpBeaconClient(endpoint string) *OpBeaconClient {
 	ctx, cancelFn := context.WithCancel(context.Background())
-	if pubKey, found := os.LookupEnv("SEQUENCER_PUBKEY"); found {
+	if pubKey, found := os.LookupEnv("OPBS_SEQUENCER_PUBKEY"); found {
 		return &OpBeaconClient{
 			ctx:      ctx,
 			cancelFn: cancelFn,
@@ -439,7 +439,7 @@ func NewOpBeaconClient(endpoint string) *OpBeaconClient {
 			endpoint:        endpoint,
 			sequencerPubkey: PubkeyHex(pubKey)}
 	}
-	panic("SEQUENCER_PUBKEY env var not set")
+	panic("OPBS_SEQUENCER_PUBKEY env var not set")
 }
 
 func (opbc *OpBeaconClient) isValidator(pubkey PubkeyHex) bool {
