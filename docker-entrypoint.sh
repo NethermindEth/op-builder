@@ -51,5 +51,4 @@ exec geth \
 	--metrics \
 	--metrics.addr=0.0.0.0 \
 	--metrics.port="$METRICS_PORT" \
-    --bootnodes="$BOOTNODES" \
 	"$@"
