@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -425,29 +424,25 @@ type OpBeaconClient struct {
 	ctx      context.Context
 	cancelFn context.CancelFunc
 
-	endpoint        string
-	sequencerPubkey PubkeyHex
+	endpoint string
 }
 
 func NewOpBeaconClient(endpoint string) *OpBeaconClient {
 	ctx, cancelFn := context.WithCancel(context.Background())
-	if pubKey, found := os.LookupEnv("OPBS_SEQUENCER_PUBKEY"); found {
-		return &OpBeaconClient{
-			ctx:      ctx,
-			cancelFn: cancelFn,
+	return &OpBeaconClient{
+		ctx:      ctx,
+		cancelFn: cancelFn,
 
-			endpoint:        endpoint,
-			sequencerPubkey: PubkeyHex(pubKey)}
+		endpoint: endpoint,
 	}
-	panic("OPBS_SEQUENCER_PUBKEY env var not set")
 }
 
 func (opbc *OpBeaconClient) isValidator(pubkey PubkeyHex) bool {
-	return pubkey == opbc.sequencerPubkey
+	return true
 }
 
 func (opbc *OpBeaconClient) getProposerForNextSlot(requestedSlot uint64) (PubkeyHex, error) {
-	return opbc.sequencerPubkey, nil
+	return PubkeyHex("0x"), nil
 }
 
 func (opbc *OpBeaconClient) SubscribeToPayloadAttributesEvents(payloadAttrC chan types.BuilderPayloadAttributes) {
