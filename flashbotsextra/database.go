@@ -248,7 +248,7 @@ func (ds *DatabaseService) ConsumeBuiltBlock(block *types.Block, blockValue *big
 	commitedBundles []types.SimulatedBundle, allBundles []types.SimulatedBundle,
 	usedSbundles []types.UsedSBundle,
 	bidTrace *apiv1.BidTrace) {
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	bundleIdsMap, err := ds.getBundleIdsAndInsertMissingBundles(ctx, block.NumberU64(), allBundles)
