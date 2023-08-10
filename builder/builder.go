@@ -344,6 +344,9 @@ func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) erro
 	// 	return fmt.Errorf("could not get validator while submitting block for slot %d - %w", attrs.Slot, err)
 	// }
 	//
+	// attrs.SuggestedFeeRecipient = [20]byte(vd.FeeRecipient)
+	// attrs.GasLimit = vd.GasLimit
+	//
 	// proposerPubkey, err := utils.HexToPubkey(string(vd.Pubkey))
 	// if err != nil {
 	// 	return fmt.Errorf("could not parse pubkey (%s) - %w", vd.Pubkey, err)
