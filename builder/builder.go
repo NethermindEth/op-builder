@@ -297,7 +297,7 @@ func (b *Builder) submitCapellaBlock(block *types.Block, blockValue *big.Int, or
 		BlockHash:            payload.BlockHash,
 		BuilderPubkey:        b.builderPublicKey,
 		ProposerPubkey:       proposerPubkey,
-		ProposerFeeRecipient: vd.FeeRecipient,
+		ProposerFeeRecipient: bellatrix.ExecutionAddress(attrs.SuggestedFeeRecipient),
 		GasLimit:             executableData.ExecutionPayload.GasLimit,
 		GasUsed:              executableData.ExecutionPayload.GasUsed,
 		Value:                value,
