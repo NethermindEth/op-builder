@@ -21,6 +21,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	bellatrixutil "github.com/attestantio/go-eth2-client/util/bellatrix"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -303,13 +304,13 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 
 func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	slot, err := strconv.Atoi(vars["slot"])
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "incorrect slot")
-		return
-	}
-	parentHashHex := vars["parent_hash"]
-	//pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
+	// slot, err := strconv.Atoi(vars["slot"])
+	// if err != nil {
+	// 	respondError(w, http.StatusBadRequest, "incorrect slot")
+	// 	return
+	// }
+    parentHash := phase0.Hash32(common.HexToHash(vars["parent_hash"]))
+	// pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
 
 	// We don't need to check validators duties or proposer key here
 
@@ -318,11 +319,16 @@ func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	bestPayload := r.bestPayload
 	r.bestDataLock.Unlock()
 
-	if bestPayload == nil || bestHeader == nil || bestHeader.ParentHash.String() != parentHashHex {
-		respondError(w, http.StatusBadRequest, "unknown header / payload")
+    if bestPayload == nil || bestHeader == nil {
+        respondError(w, http.StatusInternalServerError, "no payload has been built")
+        return
+    }
+
+	if bestHeader.ParentHash.String() != parentHash.String() {
+		respondError(w, http.StatusBadRequest, fmt.Sprintf("want %s, got %s", parentHash, bestHeader.ParentHash))
 		return
 	}
-	log.Info("Got best header", "slot", slot, "bestHeader", bestHeader)
+	log.Info("Got best header", "bestHeader", bestHeader)
 
 	// seek no proposer for a slot or signature verification here
 
