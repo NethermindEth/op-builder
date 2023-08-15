@@ -447,7 +447,7 @@ func (opbc *OpBeaconClient) getProposerForNextSlot(requestedSlot uint64) (Pubkey
 
 func (opbc *OpBeaconClient) SubscribeToPayloadAttributesEvents(payloadAttrC chan types.BuilderPayloadAttributes) {
 	eventsURL := fmt.Sprintf("%s/events", opbc.endpoint)
-	log.Info("subscribing to payload_attributes events")
+	log.Info("subscribing to payload_attributes events opbs")
 
 	for {
 		client := sse.NewClient(eventsURL)
