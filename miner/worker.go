@@ -1241,6 +1241,8 @@ type generateParams struct {
 
 	txs      types.Transactions // Deposit transactions to include at the start of the block
 	gasLimit *uint64            // The validator's requested gas limit target
+
+	isDeriving bool // Flag whether the work is to derive a block from L1 data
 }
 
 func doPrepareHeader(genParams *generateParams, chain *core.BlockChain, config *Config, chainConfig *params.ChainConfig, extra []byte, engine consensus.Engine) (*types.Header, *types.Header, error) {
@@ -1521,8 +1523,12 @@ func (w *worker) getSimulatedBundles(env *environment) ([]types.SimulatedBundle,
 func (w *worker) generateWork(genParams *generateParams) (*types.Block, *big.Int, error) {
 	start := time.Now()
 	validatorCoinbase := genParams.coinbase
-	// Set builder coinbase to be passed to beacon header
-	genParams.coinbase = w.coinbase
+
+	// Don't change the coinbase if we are just deriving the block from the L1
+	if !genParams.isDeriving {
+		// Set builder coinbase to be passed to beacon header
+		genParams.coinbase = w.coinbase
+	}
 
 	work, err := w.prepareWork(genParams)
 	if err != nil {
@@ -1756,7 +1762,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool, blockHook BlockHookFn, transactions types.Transactions, gasLimit *uint64) (*types.Block, *big.Int, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs, isDeriving bool, blockHook BlockHookFn, transactions types.Transactions, gasLimit *uint64) (*types.Block, *big.Int, error) {
 	req := &getWorkReq{
 		params: &generateParams{
 			timestamp:   timestamp,
@@ -1770,6 +1776,8 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			onBlock:     blockHook,
 			txs:         transactions,
 			gasLimit:    gasLimit,
+
+			isDeriving: isDeriving,
 		},
 		result: make(chan *newPayloadResult, 1),
 	}

@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
 	bellatrixapi "github.com/attestantio/go-builder-client/api/bellatrix"
 	capellaapi "github.com/attestantio/go-builder-client/api/capella"
 	apiv1 "github.com/attestantio/go-builder-client/api/v1"
@@ -21,10 +20,12 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	bellatrixutil "github.com/attestantio/go-eth2-client/util/bellatrix"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/ssz"
+	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-boost-utils/utils"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
@@ -303,13 +304,13 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 
 func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	slot, err := strconv.Atoi(vars["slot"])
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "incorrect slot")
-		return
-	}
-	parentHashHex := vars["parent_hash"]
-	//pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
+	// slot, err := strconv.Atoi(vars["slot"])
+	// if err != nil {
+	// 	respondError(w, http.StatusBadRequest, "incorrect slot")
+	// 	return
+	// }
+	parentHash := phase0.Hash32(common.HexToHash(vars["parent_hash"]))
+	// pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
 
 	// We don't need to check validators duties or proposer key here
 
@@ -318,19 +319,45 @@ func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	bestPayload := r.bestPayload
 	r.bestDataLock.Unlock()
 
-	if bestPayload == nil || bestHeader == nil || bestHeader.ParentHash.String() != parentHashHex {
-		respondError(w, http.StatusBadRequest, "unknown header / payload")
+	if bestPayload == nil || bestHeader == nil {
+		respondError(w, http.StatusInternalServerError, "no payload has been built")
 		return
 	}
-	log.Info("Got best header", "slot", slot, "bestHeader", bestHeader)
+
+	if bestHeader.ParentHash.String() != parentHash.String() {
+		respondError(w, http.StatusBadRequest, fmt.Sprintf("want %s, got %s", parentHash, bestHeader.ParentHash))
+		return
+	}
+    log.Info("Got best header", "id", fmt.Sprintf("%s:%d", bestPayload.BlockHash, bestPayload.BlockNumber))
 
 	// seek no proposer for a slot or signature verification here
 
 	// skip check: !ExecutionPayloadHeaderEqual(bestHeader, payload.Message.Body.ExecutionPayloadHeader)
 
-	response := &api.VersionedExecutionPayload{
-		Version:   consensusspec.DataVersionBellatrix,
-		Bellatrix: bestPayload,
+	txs := make([]Data, len(bestPayload.Transactions))
+	for i, tx := range bestPayload.Transactions {
+		txs[i] = Data(tx)
+	}
+
+	baseFeePerGas := boostTypes.U256Str(bestPayload.BaseFeePerGas)
+
+	response := &ExecutionPayload{
+		ParentHash:    common.Hash(bestPayload.ParentHash),
+		FeeRecipient:  common.Address(bestPayload.FeeRecipient),
+		StateRoot:     bestPayload.StateRoot,
+		ReceiptsRoot:  bestPayload.ReceiptsRoot,
+		LogsBloom:     bestPayload.LogsBloom,
+		PrevRandao:    bestPayload.PrevRandao,
+		BlockNumber:   hexutil.Uint64(bestPayload.BlockNumber),
+		GasLimit:      hexutil.Uint64(bestPayload.GasLimit),
+		GasUsed:       hexutil.Uint64(bestPayload.GasUsed),
+		Timestamp:     hexutil.Uint64(bestPayload.Timestamp),
+		ExtraData:     bestPayload.ExtraData,
+		BaseFeePerGas: *uint256.MustFromBig(baseFeePerGas.BigInt()),
+		BlockHash:     common.Hash(bestPayload.BlockHash),
+		// Array of transaction objects, each object is a byte list (DATA) representing
+		// TransactionType || TransactionPayload or LegacyTransaction as defined in EIP-2718
+		Transactions: txs,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

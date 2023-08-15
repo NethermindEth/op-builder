@@ -159,6 +159,7 @@ func (b *Builder) Start() error {
 			case <-b.stop:
 				return
 			case payloadAttributes := <-c:
+                log.Info("received payload attributes", "slot", payloadAttributes.Slot, "headHash", payloadAttributes.HeadHash.String())
 				// Right now we are building only on a single head. This might change in the future!
 				if payloadAttributes.Slot < currentSlot {
 					continue
@@ -334,7 +335,10 @@ func (b *Builder) submitCapellaBlock(block *types.Block, blockValue *big.Int, or
 }
 
 func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) error {
+    log.Info("OnPayloadAttribute", "attrs", attrs)
+
 	if attrs == nil {
+        log.Error("OnPayloadAttribute: attrs is nil")
 		return nil
 	}
 
@@ -365,7 +369,7 @@ func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) erro
 	defer b.slotMu.Unlock()
 
 	if attrs.Equal(&b.slotAttrs) {
-		log.Debug("ignoring known payload attribute", "slot", attrs.Slot, "hash", attrs.HeadHash)
+		log.Warn("ignoring known payload attribute", "slot", attrs.Slot, "hash", attrs.HeadHash)
 		return nil
 	}
 
