@@ -338,6 +338,7 @@ func (b *Builder) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) erro
     log.Info("OnPayloadAttribute", "attrs", attrs)
 
 	if attrs == nil {
+        log.Error("OnPayloadAttribute: attrs is nil")
 		return nil
 	}
 
