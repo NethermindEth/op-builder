@@ -328,7 +328,7 @@ func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		respondError(w, http.StatusBadRequest, fmt.Sprintf("want %s, got %s", parentHash, bestHeader.ParentHash))
 		return
 	}
-	log.Info("Got best header", "bestHeader", bestHeader)
+    log.Info("Got best header", "id", fmt.Sprintf("%s:%d", bestPayload.BlockHash, bestPayload.BlockNumber))
 
 	// seek no proposer for a slot or signature verification here
 
