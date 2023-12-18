@@ -334,6 +334,11 @@ func makeExtraData(extra []byte) []byte {
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend, s.BlockChain())
 
+	apis = append(apis, rpc.API{
+		Namespace: "suavex",
+		Service:   NewSuavexAPI(s.APIBackend, s.BlockChain()),
+	})
+
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 

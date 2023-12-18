@@ -15,32 +15,50 @@ type SuavexAPI struct {
 }
 
 func NewSuavexAPI(b Backend, chain *core.BlockChain) *SuavexAPI {
-	return &SuavexAPI{b, chain}
+	return &SuavexAPI{
+		b:     b,
+		chain: chain,
+	}
 }
 
-type BuildBlockArgs struct {
-	Slot           uint64
-	ProposerPubkey []byte
-	Parent         common.Hash
-	Timestamp      uint64
-	FeeRecipient   common.Address
-	GasLimit       uint64
-	Random         common.Hash
-	Withdrawals    []*Withdrawal
-	Extra          []byte
+func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
+	if buildArgs == nil {
+		head := api.b.CurrentHeader()
+		buildArgs = &types.BuildBlockArgs{
+			Parent:       head.Hash(),
+			Timestamp:    head.Time + uint64(12),
+			FeeRecipient: common.Address{0x42},
+			GasLimit:     30000000,
+			Random:       head.Root,
+			Withdrawals:  nil,
+		}
+	}
+
+	block, profit, err := api.b.BuildBlockFromTxs(ctx, buildArgs, txs)
+	if err != nil {
+		return nil, err
+	}
+
+	return engine.BlockToExecutableData(block, profit), nil
 }
 
-type Withdrawal struct {
-	Index     uint64
-	Validator uint64
-	Address   common.Address
-	Amount    uint64
-}
+func (api *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
+	if buildArgs == nil {
+		head := api.b.CurrentHeader()
+		buildArgs = &types.BuildBlockArgs{
+			Parent:       head.Hash(),
+			Timestamp:    head.Time + uint64(12),
+			FeeRecipient: common.Address{0x42},
+			GasLimit:     30000000,
+			Random:       head.Root,
+			Withdrawals:  nil,
+		}
+	}
 
-func (s *SuavexAPI) BuildEthBlock(ctx context.Context, args *BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
-	return nil, nil
-}
+	block, profit, err := api.b.BuildBlockFromBundles(ctx, buildArgs, bundles)
+	if err != nil {
+		return nil, err
+	}
 
-func (s *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, args *BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
-	return nil, nil
+	return engine.BlockToExecutableData(block, profit), nil
 }

@@ -1,7 +1,9 @@
 package miner
 
 import (
+	"context"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -140,6 +142,26 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	go payload.resolveBestFullPayload(workerPayloads)
 
 	return payload, nil
+}
+
+func (w *multiWorker) buildBlockFromTxs(ctx context.Context, args *types.BuildBlockArgs, txs types.Transactions) (*types.Block, *big.Int, error) {
+	if len(w.workers) == 0 {
+		return nil, nil, errors.New("No worker is running.")
+	}
+
+	worker := w.workers[0] // buildBlockFromTxs is deterministic so we don't need multi worker here.
+
+	return worker.buildBlockFromTxs(ctx, args, txs)
+}
+
+func (w *multiWorker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
+	if len(w.workers) == 0 {
+		return nil, nil, errors.New("No worker is running.")
+	}
+
+	worker := w.workers[0] // buildBlockFromBundles is deterministic so we don't need multi worker here.
+
+	return worker.buildBlockFromBundles(ctx, args, bundles)
 }
 
 func newMultiWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *multiWorker {

@@ -81,6 +81,18 @@ func (b *SBundle) Hash() common.Hash {
 	return h
 }
 
+func (b *SBundle) Txs() Transactions {
+	txs := make(Transactions, len(b.Body))
+	for i, body := range b.Body {
+		txs[i] = body.Tx
+	}
+	return txs
+}
+
+func (b *SBundle) RefundPercent() *int {
+	return &b.Validity.RefundConfig[0].Percent
+}
+
 type SimSBundle struct {
 	Bundle *SBundle
 	// MevGasPrice = (total coinbase profit) / (gas used)
