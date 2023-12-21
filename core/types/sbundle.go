@@ -90,6 +90,9 @@ func (b *SBundle) Txs() Transactions {
 }
 
 func (b *SBundle) RefundPercent() *int {
+	if (len(b.Validity.RefundConfig)) == 0 {
+		return nil
+	}
 	return &b.Validity.RefundConfig[0].Percent
 }
 
