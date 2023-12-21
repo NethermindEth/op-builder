@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
@@ -618,64 +617,4 @@ func (api *DebugAPI) SetTrieFlushInterval(interval string) error {
 	}
 	api.eth.blockchain.SetTrieFlushInterval(t)
 	return nil
-}
-
-type EthBackend interface {
-	CurrentHeader() *types.Header
-	BuildBlockFromTxs(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*types.Block, *big.Int, error)
-	BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error)
-}
-
-type SuavexAPI struct {
-	b     EthBackend
-	chain *core.BlockChain
-}
-
-func NewSuavexAPI(b EthBackend, chain *core.BlockChain) *SuavexAPI {
-	return &SuavexAPI{
-		b:     b,
-		chain: chain,
-	}
-}
-
-func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
-	if buildArgs == nil {
-		head := api.b.CurrentHeader()
-		buildArgs = &types.BuildBlockArgs{
-			Parent:       head.Hash(),
-			Timestamp:    head.Time + uint64(12),
-			FeeRecipient: common.Address{0x42},
-			GasLimit:     30000000,
-			Random:       head.Root,
-			Withdrawals:  nil,
-		}
-	}
-
-	block, profit, err := api.b.BuildBlockFromTxs(ctx, buildArgs, txs)
-	if err != nil {
-		return nil, err
-	}
-
-	return engine.BlockToExecutableData(block, profit), nil
-}
-
-func (api *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
-	if buildArgs == nil {
-		head := api.b.CurrentHeader()
-		buildArgs = &types.BuildBlockArgs{
-			Parent:       head.Hash(),
-			Timestamp:    head.Time + uint64(12),
-			FeeRecipient: common.Address{0x42},
-			GasLimit:     30000000,
-			Random:       head.Root,
-			Withdrawals:  nil,
-		}
-	}
-
-	block, profit, err := api.b.BuildBlockFromBundles(ctx, buildArgs, bundles)
-	if err != nil {
-		return nil, err
-	}
-
-	return engine.BlockToExecutableData(block, profit), nil
 }

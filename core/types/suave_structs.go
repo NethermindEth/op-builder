@@ -26,4 +26,5 @@ type BuildBlockArgs struct {
 	Random         common.Hash
 	Withdrawals    []*Withdrawal
 	Extra          []byte
+	Transactions   Transactions // Transactions from the op consensus layer - deposit txs
 }

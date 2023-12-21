@@ -1800,7 +1800,7 @@ func (w *worker) buildBlockFromTxs(ctx context.Context, args *types.BuildBlockAr
 		forceTime:   true,
 		parentHash:  args.Parent,
 		coinbase:    args.FeeRecipient,
-		gasLimit:    args.GasLimit,
+		gasLimit:    &args.GasLimit,
 		random:      args.Random,
 		extra:       args.Extra,
 		withdrawals: args.Withdrawals,
@@ -1815,6 +1815,11 @@ func (w *worker) buildBlockFromTxs(ctx context.Context, args *types.BuildBlockAr
 	defer work.discard()
 
 	profitPre := work.state.GetBalance(args.FeeRecipient)
+
+	// handle deposit txs first
+	if err := w.rawCommitTransactions(work, args.Transactions); err != nil {
+		return nil, nil, err
+	}
 
 	if err := w.rawCommitTransactions(work, txs); err != nil {
 		return nil, nil, err
@@ -1842,7 +1847,7 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 		forceTime:   true,
 		parentHash:  args.Parent,
 		coinbase:    ephemeralAddr, // NOTE : overriding BuildBlockArgs.FeeRecipient
-		gasLimit:    args.GasLimit,
+		gasLimit:    &args.GasLimit,
 		random:      args.Random,
 		extra:       args.Extra,
 		withdrawals: args.Withdrawals,
@@ -1860,6 +1865,11 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 	refundTransferCost := new(big.Int).Mul(big.NewInt(28000), work.header.BaseFee)
 
 	profitPre := work.state.GetBalance(params.coinbase)
+
+	// handle deposit txs first
+	if err := w.rawCommitTransactions(work, args.Transactions); err != nil {
+		return nil, nil, err
+	}
 
 	for _, bundle := range bundles {
 		// NOTE: failing bundles will cause the block to not be built!
