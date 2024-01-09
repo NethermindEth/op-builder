@@ -1,73 +1,20 @@
-package ethapi
+package suave
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/r3labs/sse"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type PubkeyHex string
-
-type OpBeaconClient struct {
-	ctx      context.Context
-	cancelFn context.CancelFunc
-
-	endpoint string
-}
-
-func NewOpBeaconClient(endpoint string) *OpBeaconClient {
-	ctx, cancelFn := context.WithCancel(context.Background())
-	return &OpBeaconClient{
-		ctx:      ctx,
-		cancelFn: cancelFn,
-
-		endpoint: endpoint,
-	}
-}
-
-func (opbc *OpBeaconClient) SubscribeToPayloadAttributesEvents(payloadAttrC chan types.BuilderPayloadAttributes) {
-	eventsURL := fmt.Sprintf("%s/events", opbc.endpoint)
-	log.Info("subscribing to payload_attributes events opbs")
-
-	for {
-		client := sse.NewClient(eventsURL)
-		err := client.SubscribeWithContext(opbc.ctx, "payload_attributes", func(msg *sse.Event) {
-			data := new(types.BuilderPayloadAttributes)
-			err := json.Unmarshal(msg.Data, data)
-			if err != nil {
-				log.Error("could not unmarshal payload_attributes event", "err", err)
-			} else {
-				payloadAttrC <- *data
-			}
-		})
-		if err != nil {
-			log.Error("failed to subscribe to payload_attributes events", "err", err)
-			time.Sleep(1 * time.Second)
-		}
-		log.Warn("opnode Subscribe ended, reconnecting")
-	}
-}
-
-func (opbc *OpBeaconClient) Start() error {
-	return nil
-}
-
-func (opbc *OpBeaconClient) Stop() {
-	opbc.cancelFn()
-}
-
 type SuavexAPI struct {
-	b            Backend
-	chain        *core.BlockChain
+	b            *eth.Ethereum
 	beaconClient *OpBeaconClient
 	stop         chan struct{}
 
@@ -75,11 +22,10 @@ type SuavexAPI struct {
 	slotAttrs types.BuilderPayloadAttributes
 }
 
-func NewSuavexAPI(b Backend, chain *core.BlockChain, endpoint string) *SuavexAPI {
-	client := NewOpBeaconClient(endpoint)
+func NewSuavexAPI(stack *node.Node, b *eth.Ethereum, config *Config) *SuavexAPI {
+	client := NewOpBeaconClient(config.BeaconEndpoint)
 	return &SuavexAPI{
 		b:            b,
-		chain:        chain,
 		beaconClient: client,
 		stop:         make(chan struct{}, 1),
 	}
@@ -126,8 +72,8 @@ func (api *SuavexAPI) Stop() error {
 
 func (api *SuavexAPI) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) error {
 	log.Info("OnPayloadAttribute", "attrs", attrs)
+	parentBlock := api.b.BlockChain().GetBlockByHash(attrs.HeadHash)
 
-	parentBlock := api.chain.GetBlockByHash(attrs.HeadHash)
 	if parentBlock == nil {
 		return fmt.Errorf("could not find parent block with hash %s", attrs.HeadHash)
 	}
@@ -148,24 +94,19 @@ func (api *SuavexAPI) getCurrentDepositTxs() (types.Transactions, error) {
 
 func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
 	if buildArgs == nil {
-		head := api.b.CurrentHeader()
 		buildArgs = &types.BuildBlockArgs{
-			Parent:       head.Hash(),
-			Timestamp:    head.Time + uint64(12),
-			FeeRecipient: common.Address{0x42},
-			GasLimit:     30000000,
-			Random:       head.Root,
-			Withdrawals:  nil,
+			Slot:         api.slotAttrs.Slot,
+			Parent:       api.slotAttrs.HeadHash,
+			Timestamp:    uint64(api.slotAttrs.Timestamp),
+			FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
+			GasLimit:     api.slotAttrs.GasLimit,
+			Random:       api.slotAttrs.Random,
+			Withdrawals:  api.slotAttrs.Withdrawals,
+			Transactions: api.slotAttrs.Transactions,
 		}
 	}
 
-	depositTxs, err := api.getCurrentDepositTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	buildArgs.Transactions = depositTxs
-	block, profit, err := api.b.BuildBlockFromTxs(ctx, buildArgs, txs)
+	block, profit, err := api.b.APIBackend.BuildBlockFromTxs(ctx, buildArgs, txs)
 	if err != nil {
 		return nil, err
 	}
@@ -175,27 +116,39 @@ func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildB
 
 func (api *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
 	if buildArgs == nil {
-		head := api.b.CurrentHeader()
 		buildArgs = &types.BuildBlockArgs{
-			Parent:       head.Hash(),
-			Timestamp:    head.Time + uint64(12),
-			FeeRecipient: common.Address{0x42},
-			GasLimit:     30000000,
-			Random:       head.Root,
-			Withdrawals:  nil,
+			Slot:         api.slotAttrs.Slot,
+			Parent:       api.slotAttrs.HeadHash,
+			Timestamp:    uint64(api.slotAttrs.Timestamp),
+			FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
+			GasLimit:     api.slotAttrs.GasLimit,
+			Random:       api.slotAttrs.Random,
+			Withdrawals:  api.slotAttrs.Withdrawals,
+			Transactions: api.slotAttrs.Transactions,
 		}
 	}
 
-	depositTxs, err := api.getCurrentDepositTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	buildArgs.Transactions = depositTxs
-	block, profit, err := api.b.BuildBlockFromBundles(ctx, buildArgs, bundles)
+	block, profit, err := api.b.APIBackend.BuildBlockFromBundles(ctx, buildArgs, bundles)
 	if err != nil {
 		return nil, err
 	}
 
 	return engine.BlockToExecutableData(block, profit), nil
+}
+
+func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
+	suaveService := NewSuavexAPI(stack, backend, cfg)
+
+	stack.RegisterAPIs([]rpc.API{
+		{
+			Namespace:     "suave",
+			Version:       "1.0",
+			Service:       suaveService,
+			Public:        true,
+			Authenticated: false, // DEMO ONLY
+		},
+	})
+
+	stack.RegisterLifecycle(suaveService)
+	return nil
 }

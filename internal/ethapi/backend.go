@@ -141,9 +141,6 @@ func GetAPIs(apiBackend Backend, chain *core.BlockChain) []rpc.API {
 		}, {
 			Namespace: "mev",
 			Service:   NewMevAPI(apiBackend, chain),
-		}, {
-			Namespace: "suavex",
-			Service:   NewSuavexAPI(apiBackend, chain, ""),
 		},
 	}
 }
