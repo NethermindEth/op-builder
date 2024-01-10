@@ -883,6 +883,7 @@ var (
 		Category: flags.BuilderCategory,
 	}
 
+	// SUAVE namespace rpc settings
 	SuaveEnabled = &cli.BoolFlag{
 		Name:     "suave",
 		Usage:    "Enable the suave",
@@ -2359,6 +2360,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.
 	}
 
 	if suaveConfig.Enabled {
+		log.Info("Enable suave service")
 		if err := suave.Register(stack, backend, suaveConfig); err != nil {
 			Fatalf("Failed to register the suave service: %v", err)
 		}

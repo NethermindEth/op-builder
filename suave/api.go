@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type SuavexAPI struct {
+type SuaveAPI struct {
 	b            *eth.Ethereum
 	beaconClient *OpBeaconClient
 	stop         chan struct{}
@@ -22,16 +22,17 @@ type SuavexAPI struct {
 	slotAttrs types.BuilderPayloadAttributes
 }
 
-func NewSuavexAPI(stack *node.Node, b *eth.Ethereum, config *Config) *SuavexAPI {
+func NewSuaveAPI(stack *node.Node, b *eth.Ethereum, config *Config) *SuaveAPI {
 	client := NewOpBeaconClient(config.BeaconEndpoint)
-	return &SuavexAPI{
+	return &SuaveAPI{
 		b:            b,
 		beaconClient: client,
 		stop:         make(chan struct{}, 1),
 	}
 }
 
-func (api *SuavexAPI) Start() error {
+func (api *SuaveAPI) Start() error {
+	log.Info("starting Suave api")
 	go func() {
 		c := make(chan types.BuilderPayloadAttributes)
 		go api.beaconClient.SubscribeToPayloadAttributesEvents(c)
@@ -65,12 +66,12 @@ func (api *SuavexAPI) Start() error {
 	return api.beaconClient.Start()
 }
 
-func (api *SuavexAPI) Stop() error {
+func (api *SuaveAPI) Stop() error {
 	close(api.stop)
 	return nil
 }
 
-func (api *SuavexAPI) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) error {
+func (api *SuaveAPI) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) error {
 	log.Info("OnPayloadAttribute", "attrs", attrs)
 	parentBlock := api.b.BlockChain().GetBlockByHash(attrs.HeadHash)
 
@@ -85,14 +86,14 @@ func (api *SuavexAPI) OnPayloadAttribute(attrs *types.BuilderPayloadAttributes) 
 	return nil
 }
 
-func (api *SuavexAPI) getCurrentDepositTxs() (types.Transactions, error) {
+func (api *SuaveAPI) getCurrentDepositTxs() (types.Transactions, error) {
 	api.slotMu.Lock()
 	defer api.slotMu.Unlock()
 
 	return api.slotAttrs.Transactions, nil
 }
 
-func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
+func (api *SuaveAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
 	if buildArgs == nil {
 		buildArgs = &types.BuildBlockArgs{
 			Slot:         api.slotAttrs.Slot,
@@ -114,7 +115,7 @@ func (api *SuavexAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildB
 	return engine.BlockToExecutableData(block, profit), nil
 }
 
-func (api *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
+func (api *SuaveAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
 	if buildArgs == nil {
 		buildArgs = &types.BuildBlockArgs{
 			Slot:         api.slotAttrs.Slot,
@@ -137,7 +138,7 @@ func (api *SuavexAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *t
 }
 
 func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
-	suaveService := NewSuavexAPI(stack, backend, cfg)
+	suaveService := NewSuaveAPI(stack, backend, cfg)
 
 	stack.RegisterAPIs([]rpc.API{
 		{

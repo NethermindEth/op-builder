@@ -32,7 +32,7 @@ func NewOpBeaconClient(endpoint string) *OpBeaconClient {
 
 func (opbc *OpBeaconClient) SubscribeToPayloadAttributesEvents(payloadAttrC chan types.BuilderPayloadAttributes) {
 	eventsURL := fmt.Sprintf("%s/events", opbc.endpoint)
-	log.Info("subscribing to payload_attributes events opbs")
+	log.Info("subscribing to payload_attributes events opbs", "url", eventsURL)
 
 	for {
 		client := sse.NewClient(eventsURL)
