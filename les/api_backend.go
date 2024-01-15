@@ -346,7 +346,7 @@ func (b *LesApiBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *types.
 	panic("BuildBlockFromTxs is not supported in light client mode")
 }
 
-func (b *LesApiBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
+func (b *LesApiBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*types.Block, *big.Int, error) {
 	panic("BuildBlockFromBundles is not supported in light client mode")
 }
 

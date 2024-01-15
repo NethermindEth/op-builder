@@ -52,7 +52,7 @@ func (api *SuaveAPI) Start() error {
 					currentSlot = payloadAttributes.Slot
 					err := api.OnPayloadAttribute(&payloadAttributes)
 					if err != nil {
-						log.Error("error with builder processing on payload attribute",
+						log.Error("error with processing on payload attribute",
 							"latestSlot", currentSlot,
 							"processedSlot", payloadAttributes.Slot,
 							"headHash", payloadAttributes.HeadHash.String(),
@@ -94,17 +94,15 @@ func (api *SuaveAPI) getCurrentDepositTxs() (types.Transactions, error) {
 }
 
 func (api *SuaveAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*engine.ExecutionPayloadEnvelope, error) {
-	if buildArgs == nil {
-		buildArgs = &types.BuildBlockArgs{
-			Slot:         api.slotAttrs.Slot,
-			Parent:       api.slotAttrs.HeadHash,
-			Timestamp:    uint64(api.slotAttrs.Timestamp),
-			FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
-			GasLimit:     api.slotAttrs.GasLimit,
-			Random:       api.slotAttrs.Random,
-			Withdrawals:  api.slotAttrs.Withdrawals,
-			Transactions: api.slotAttrs.Transactions,
-		}
+	buildArgs = &types.BuildBlockArgs{
+		Slot:         api.slotAttrs.Slot,
+		Parent:       api.slotAttrs.HeadHash,
+		Timestamp:    uint64(api.slotAttrs.Timestamp),
+		FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
+		GasLimit:     api.slotAttrs.GasLimit,
+		Random:       api.slotAttrs.Random,
+		Withdrawals:  api.slotAttrs.Withdrawals,
+		Transactions: api.slotAttrs.Transactions,
 	}
 
 	block, profit, err := api.b.APIBackend.BuildBlockFromTxs(ctx, buildArgs, txs)
@@ -115,17 +113,22 @@ func (api *SuaveAPI) BuildEthBlock(ctx context.Context, buildArgs *types.BuildBl
 	return engine.BlockToExecutableData(block, profit), nil
 }
 
-func (api *SuaveAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*engine.ExecutionPayloadEnvelope, error) {
-	if buildArgs == nil {
-		buildArgs = &types.BuildBlockArgs{
-			Slot:         api.slotAttrs.Slot,
-			Parent:       api.slotAttrs.HeadHash,
-			Timestamp:    uint64(api.slotAttrs.Timestamp),
-			FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
-			GasLimit:     api.slotAttrs.GasLimit,
-			Random:       api.slotAttrs.Random,
-			Withdrawals:  api.slotAttrs.Withdrawals,
-			Transactions: api.slotAttrs.Transactions,
+func (api *SuaveAPI) BuildEthBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*engine.ExecutionPayloadEnvelope, error) {
+	buildArgs = &types.BuildBlockArgs{
+		Slot:         api.slotAttrs.Slot,
+		Parent:       api.slotAttrs.HeadHash,
+		Timestamp:    uint64(api.slotAttrs.Timestamp),
+		FeeRecipient: api.slotAttrs.SuggestedFeeRecipient,
+		GasLimit:     api.slotAttrs.GasLimit,
+		Random:       api.slotAttrs.Random,
+		Withdrawals:  api.slotAttrs.Withdrawals,
+		Transactions: api.slotAttrs.Transactions,
+	}
+	log.Info("BuildEthBlockFromBundles", "buildArgs", buildArgs, "bundles", bundles)
+
+	for _, bundle := range bundles {
+		for _, tx := range bundle.Txs {
+			log.Info("Transaction dump", "tx", tx)
 		}
 	}
 
@@ -142,7 +145,7 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 
 	stack.RegisterAPIs([]rpc.API{
 		{
-			Namespace:     "suave",
+			Namespace:     "suavex",
 			Version:       "1.0",
 			Service:       suaveService,
 			Public:        true,

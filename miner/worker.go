@@ -1834,7 +1834,12 @@ func (w *worker) buildBlockFromTxs(ctx context.Context, args *types.BuildBlockAr
 	return block, blockProfit, nil
 }
 
-func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
+func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*types.Block, *big.Int, error) {
+	log.Info("Running buildBlockFromBundles", "num_bundles", len(bundles), "num_txns", len(args.Transactions))
+
+	for i, bundle := range bundles {
+		log.Info("Dump bundle:", "i", i, "bundle", bundle)
+	}
 	// create ephemeral addr and private key for payment txn
 	ephemeralPrivKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -1874,17 +1879,19 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 	for _, bundle := range bundles {
 		// NOTE: failing bundles will cause the block to not be built!
 
-		// apply bundle
+		log.Info("Applying bundle", "bundle", bundle, "num_txns", len(bundle.Txs)) // apply bundle
 		profitPreBundle := work.state.GetBalance(params.coinbase)
-		if err := w.rawCommitTransactions(work, bundle.Txs()); err != nil {
+		log.Info("PreBundle:", "profitPreBundle", profitPreBundle)
+		if err := w.rawCommitTransactions(work, bundle.Txs); err != nil {
 			return nil, nil, err
 		}
 		profitPostBundle := work.state.GetBalance(params.coinbase)
+		log.Info("PostBundle:", "profitPostBundle", profitPreBundle)
 
 		// calc & refund user if bundle has multiple txns and wants refund
-		if len(bundle.Txs()) > 1 && bundle.RefundPercent() != nil {
+		if len(bundle.Txs) > 1 && bundle.RefundPercent != nil {
 			// Note: PoC logic, this could be gamed by not sending any eth to coinbase
-			refundPrct := *bundle.RefundPercent()
+			refundPrct := *bundle.RefundPercent
 			if refundPrct == 0 {
 				// default refund
 				refundPrct = 10
@@ -1897,7 +1904,7 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 			currNonce := work.state.GetNonce(ephemeralAddr)
 			// HACK to include payment txn
 			// multi refund block untested
-			bidTx := bundle.Txs()[0] // NOTE : assumes first txn is refund recipient
+			bidTx := bundle.Txs[0] // NOTE : assumes first txn is refund recipient
 			refundAddr, err := types.Sender(types.LatestSignerForChainID(bidTx.ChainId()), bidTx)
 			if err != nil {
 				return nil, nil, err
@@ -1922,9 +1929,12 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 	}
 
 	profitPost := work.state.GetBalance(params.coinbase)
+	log.Info("PostBundles:", "profitPost", profitPost)
 	proposerProfit := new(big.Int).Set(profitPost) // = post-pre-transfer_cost
 	proposerProfit = proposerProfit.Sub(profitPost, profitPre)
 	proposerProfit = proposerProfit.Sub(proposerProfit, refundTransferCost)
+	log.Info("Calculating profit", "pre", profitPre, "post", profitPost, "refundTransferCost", refundTransferCost, "proposerProfit", proposerProfit)
+	proposerProfit = big.NewInt(1000)
 
 	currNonce := work.state.GetNonce(ephemeralAddr)
 	paymentTx, err := types.SignTx(types.NewTx(&types.LegacyTx{
@@ -1940,10 +1950,10 @@ func (w *worker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlo
 
 	// commit payment txn
 	if err := w.rawCommitTransactions(work, types.Transactions{paymentTx}); err != nil {
-		return nil, nil, fmt.Errorf("could not sign proposer payment: %w", err)
+		return nil, nil, fmt.Errorf("could not commit proposer payment: %w", err)
 	}
 
-	log.Info("buildBlockFromBundles", "num_bundles", len(bundles), "num_txns", len(work.txs), "profit", proposerProfit)
+	log.Info("buildBlockFromBundles", "num_bundles", len(bundles), "num_txns", len(work.txs), "signprofit", proposerProfit)
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts, params.withdrawals)
 	if err != nil {
 		return nil, nil, err

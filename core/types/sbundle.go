@@ -1,11 +1,13 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -21,6 +23,72 @@ type SBundle struct {
 	Validity  BundleValidity
 
 	hash atomic.Value
+}
+
+type RpcSBundle struct {
+	BlockNumber     *hexutil.Big    `json:"blockNumber,omitempty"`
+	MaxBlock        *hexutil.Big    `json:"maxBlock,omitempty"`
+	Txs             []hexutil.Bytes `json:"txs"`
+	RevertingHashes []common.Hash   `json:"revertingHashes,omitempty"`
+	RefundPercent   *int            `json:"percent,omitempty"`
+}
+
+type SBundleFromSuave struct {
+	BlockNumber     *big.Int      `json:"blockNumber,omitempty"` // if BlockNumber is set it must match DecryptionCondition!
+	MaxBlock        *big.Int      `json:"maxBlock,omitempty"`
+	Txs             Transactions  `json:"txs"`
+	RevertingHashes []common.Hash `json:"revertingHashes,omitempty"`
+	RefundPercent   *int          `json:"percent,omitempty"`
+}
+
+func (s *SBundleFromSuave) MarshalJSON() ([]byte, error) {
+	txs := []hexutil.Bytes{}
+	for _, tx := range s.Txs {
+		txBytes, err := tx.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, txBytes)
+	}
+
+	var blockNumber *hexutil.Big
+	if s.BlockNumber != nil {
+		blockNumber = new(hexutil.Big)
+		*blockNumber = hexutil.Big(*s.BlockNumber)
+	}
+
+	return json.Marshal(&RpcSBundle{
+		BlockNumber:     blockNumber,
+		Txs:             txs,
+		RevertingHashes: s.RevertingHashes,
+		RefundPercent:   s.RefundPercent,
+	})
+}
+
+func (s *SBundleFromSuave) UnmarshalJSON(data []byte) error {
+	var rpcSBundle RpcSBundle
+	if err := json.Unmarshal(data, &rpcSBundle); err != nil {
+		return err
+	}
+
+	var txs Transactions
+	for _, txBytes := range rpcSBundle.Txs {
+		var tx Transaction
+		err := tx.UnmarshalBinary(txBytes)
+		if err != nil {
+			return err
+		}
+
+		txs = append(txs, &tx)
+	}
+
+	s.BlockNumber = (*big.Int)(rpcSBundle.BlockNumber)
+	s.MaxBlock = (*big.Int)(rpcSBundle.MaxBlock)
+	s.Txs = txs
+	s.RevertingHashes = rpcSBundle.RevertingHashes
+	s.RefundPercent = rpcSBundle.RefundPercent
+
+	return nil
 }
 
 type BundleInclusion struct {

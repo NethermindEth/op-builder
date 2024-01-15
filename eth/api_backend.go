@@ -422,7 +422,7 @@ func (b *EthAPIBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *types.
 	return b.eth.Miner().BuildBlockFromTxs(ctx, buildArgs, txs)
 }
 
-func (b *EthAPIBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
+func (b *EthAPIBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*types.Block, *big.Int, error) {
 	return b.eth.Miner().BuildBlockFromBundles(ctx, buildArgs, bundles)
 }
 

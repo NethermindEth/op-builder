@@ -154,7 +154,7 @@ func (w *multiWorker) buildBlockFromTxs(ctx context.Context, args *types.BuildBl
 	return worker.buildBlockFromTxs(ctx, args, txs)
 }
 
-func (w *multiWorker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
+func (w *multiWorker) buildBlockFromBundles(ctx context.Context, args *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*types.Block, *big.Int, error) {
 	if len(w.workers) == 0 {
 		return nil, nil, errors.New("No worker is running.")
 	}
