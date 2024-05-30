@@ -18,6 +18,7 @@
 package ethconfig
 
 import (
+	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -207,6 +208,15 @@ type Config struct {
 
 	// OverrideShanghai (TODO: remove after the fork)
 	OverrideShanghai *uint64 `toml:",omitempty"`
+
+	OverrideOptimismBedrock  *big.Int
+	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
+	OverrideOptimism         *bool
+
+	RollupSequencerHTTP        string
+	RollupHistoricalRPC        string
+	RollupHistoricalRPCTimeout time.Duration
+	RollupDisableTxPoolGossip  bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

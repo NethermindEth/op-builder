@@ -18,6 +18,7 @@
 package miner
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -46,6 +48,9 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *txpool.TxPool
+}
+type BackendWithHistoricalState interface {
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
 }
 
 type AlgoType int
@@ -99,6 +104,8 @@ type Config struct {
 	Blocklist           []common.Address `toml:",omitempty"`
 	NewPayloadTimeout   time.Duration    // The maximum time allowance for creating a new payload
 	PriceCutoffPercent  int              // Effective gas price cutoff % used for bucketing transactions by price (only useful in greedy-buckets AlgoType)
+
+	RollupComputePendingBlock bool // Compute the pending block from tx-pool, instead of copying the latest-block
 }
 
 // DefaultConfig contains default settings for miner.

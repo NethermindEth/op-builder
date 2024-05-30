@@ -191,7 +191,7 @@ func (b *testWorkerBackend) newRandomUncle() *types.Block {
 		parent = b.chain.GetBlockByHash(b.chain.CurrentBlock().ParentHash)
 	}
 	blocks, _ := core.GenerateChain(b.chain.Config(), parent, b.chain.Engine(), b.db, 1, func(i int, gen *core.BlockGen) {
-		var addr = make([]byte, common.AddressLength)
+		addr := make([]byte, common.AddressLength)
 		rand.Read(addr)
 		gen.SetCoinbase(common.BytesToAddress(addr))
 	})
@@ -224,7 +224,7 @@ func newTestWorkerGenesis(t *testing.T, chainConfig *params.ChainConfig, engine 
 }
 
 func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, alloc core.GenesisAlloc, blocks int) (*worker, *testWorkerBackend) {
-	var genesis = core.Genesis{
+	genesis := core.Genesis{
 		Config: chainConfig,
 		Alloc:  alloc,
 	}
@@ -294,6 +294,7 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 func TestEmptyWorkEthash(t *testing.T) {
 	testEmptyWork(t, ethashChainConfig, ethash.NewFaker())
 }
+
 func TestEmptyWorkClique(t *testing.T) {
 	testEmptyWork(t, cliqueChainConfig, clique.New(cliqueChainConfig.Clique, rawdb.NewMemoryDatabase()))
 }
@@ -350,7 +351,7 @@ func TestStreamUncleBlock(t *testing.T) {
 	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), defaultGenesisAlloc, 1)
 	defer w.close()
 
-	var taskCh = make(chan struct{}, 3)
+	taskCh := make(chan struct{}, 3)
 
 	taskIndex := 0
 	w.newTaskHook = func(task *task) {
@@ -408,7 +409,7 @@ func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, en
 	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), defaultGenesisAlloc, 0)
 	defer w.close()
 
-	var taskCh = make(chan struct{}, 3)
+	taskCh := make(chan struct{}, 3)
 
 	taskIndex := 0
 	w.newTaskHook = func(task *task) {
@@ -500,7 +501,8 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 			estimate = estimate*(1-intervalAdjustRatio) + intervalAdjustRatio*(min-intervalAdjustBias)
 			wantMinInterval, wantRecommitInterval = 3*time.Second, time.Duration(estimate)*time.Nanosecond
 		case 3:
-			wantMinInterval, wantRecommitInterval = time.Second, time.Second
+			// lower than upstream test, since enforced min recommit interval is lower
+			wantMinInterval, wantRecommitInterval = 500*time.Millisecond, 500*time.Millisecond
 		}
 
 		// Check interval
@@ -612,7 +614,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 			t.Errorf("Mismatched block number, want %d got %d", number, block.NumberU64())
 		}
 	}
-	var cases = []struct {
+	cases := []struct {
 		parent       common.Hash
 		coinbase     common.Address
 		random       common.Hash
@@ -658,7 +660,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 
 	// This API should work even when the automatic sealing is not enabled
 	for _, c := range cases {
-		block, _, err := w.getSealingBlock(c.parent, timestamp, c.coinbase, 0, c.random, nil, true, nil)
+		block, _, err := w.getSealingBlock(c.parent, timestamp, c.coinbase, c.random, nil, true, nil, nil, nil)
 		if c.expectErr {
 			if err == nil {
 				t.Error("Expect error but get nil")
@@ -674,7 +676,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 	// This API should work even when the automatic sealing is enabled
 	w.start()
 	for _, c := range cases {
-		block, _, err := w.getSealingBlock(c.parent, timestamp, c.coinbase, 0, c.random, nil, false, nil)
+		block, _, err := w.getSealingBlock(c.parent, timestamp, c.coinbase, c.random, nil, false, nil, nil, nil)
 		if c.expectErr {
 			if err == nil {
 				t.Error("Expect error but get nil")
@@ -692,7 +694,8 @@ func TestSimulateBundles(t *testing.T) {
 	w, _ := newTestWorker(t, ethashChainConfig, ethash.NewFaker(), rawdb.NewMemoryDatabase(), defaultGenesisAlloc, 0)
 	defer w.close()
 
-	env, err := w.prepareWork(&generateParams{gasLimit: 30000000})
+	gasLimit := uint64(30000000)
+	env, err := w.prepareWork(&generateParams{gasLimit: &gasLimit})
 	if err != nil {
 		t.Fatalf("Failed to prepare work: %s", err)
 	}
@@ -822,7 +825,7 @@ func testBundles(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		block, _, err := w.getSealingBlock(w.chain.CurrentBlock().Hash(), w.chain.CurrentHeader().Time+12, testUserAddress, 0, common.Hash{}, nil, false, nil)
+		block, _, err := w.getSealingBlock(w.chain.CurrentBlock().Hash(), w.chain.CurrentHeader().Time+12, testUserAddress, common.Hash{}, nil, false, nil, nil, nil)
 		require.NoError(t, err)
 
 		state, err := w.chain.State()

@@ -681,7 +681,7 @@ func TestClientReconnect(t *testing.T) {
 		return srv, l
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	// Start a server and corresponding client.

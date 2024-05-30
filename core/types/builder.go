@@ -12,8 +12,9 @@ type BuilderPayloadAttributes struct {
 	SuggestedFeeRecipient common.Address `json:"suggestedFeeRecipient,omitempty"`
 	Slot                  uint64         `json:"slot"`
 	HeadHash              common.Hash    `json:"blockHash"`
-	Withdrawals           Withdrawals    `json:"withdrawals"`
-	GasLimit              uint64
+	Withdrawals           Withdrawals    `json:"withdrawals,omitempty"`
+	Transactions          Transactions   `json:"transactions"`
+	GasLimit              uint64         `json:"gasLimit"`
 }
 
 func (attrs *BuilderPayloadAttributes) Equal(other *BuilderPayloadAttributes) bool {
@@ -29,5 +30,10 @@ func (attrs *BuilderPayloadAttributes) Equal(other *BuilderPayloadAttributes) bo
 	if !slices.Equal(attrs.Withdrawals, other.Withdrawals) {
 		return false
 	}
+
+	if !slices.Equal(attrs.Transactions, other.Transactions) {
+		return false
+	}
+
 	return true
 }

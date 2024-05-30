@@ -93,7 +93,7 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	var empty *types.Block
 	for _, worker := range w.workers {
 		var err error
-		empty, _, err = worker.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.GasLimit, args.Random, args.Withdrawals, true, nil)
+		empty, _, err = worker.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.NoTxPool, args.BlockHook, args.Transactions, args.GasLimit)
 		if err != nil {
 			log.Error("could not start async block construction", "isFlashbotsWorker", worker.flashbots.isFlashbots, "#bundles", worker.flashbots.maxMergedBundles)
 			continue
@@ -108,8 +108,13 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Construct a payload object for return.
 	payload := newPayload(empty, args.Id())
 
-	if len(w.workers) == 0 {
+	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
 		return payload, nil
+	}
+
+	if len(w.workers) == 0 {
+		panic("no workers found") // why would this happen?
+		// return payload, nil
 	}
 
 	// Keep separate payloads for each worker so that ResolveFull actually resolves the best of all workers
@@ -122,7 +127,7 @@ func (w *multiWorker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		go func(w *worker) {
 			// Update routine done elsewhere!
 			start := time.Now()
-			block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.GasLimit, args.Random, args.Withdrawals, false, args.BlockHook)
+			block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, false, args.BlockHook, args.Transactions, args.GasLimit)
 			if err == nil {
 				workerPayload.update(block, fees, time.Since(start))
 			} else {
