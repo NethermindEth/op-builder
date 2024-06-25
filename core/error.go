@@ -101,13 +101,10 @@ var (
 	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
 	ErrSenderNoEOA = errors.New("sender not an eoa")
 
-	// ErrBlobFeeCapTooLow is returned if the transaction fee cap is less than the
-	// blob gas fee of the block.
-	ErrBlobFeeCapTooLow = errors.New("max fee per blob gas less than block blob gas fee")
+	// ErrSystemTxNotSupported is returned for any deposit tx with IsSystemTx=true after the Regolith fork
+	ErrSystemTxNotSupported = errors.New("system tx not supported")
 
-	// ErrMissingBlobHashes is returned if a blob transaction has no blob hashes.
-	ErrMissingBlobHashes = errors.New("blob transaction missing blob hashes")
-
-	// ErrBlobTxCreate is returned if a blob transaction has no explicit to field.
-	ErrBlobTxCreate = errors.New("blob transaction of type create")
+	// ErrNegativeValue is a sanity error to ensure no one is able to specify a
+	// transaction with a negative value.
+	ErrNegativeValue = errors.New("negative value")
 )

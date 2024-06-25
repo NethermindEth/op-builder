@@ -17,7 +17,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -143,7 +142,7 @@ var discoveryNodeFlags = []cli.Flag{
 
 func discv4Ping(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
-	disc, _ := startV4(ctx)
+	disc := startV4(ctx)
 	defer disc.Close()
 
 	start := time.Now()
@@ -156,7 +155,7 @@ func discv4Ping(ctx *cli.Context) error {
 
 func discv4RequestRecord(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
-	disc, _ := startV4(ctx)
+	disc := startV4(ctx)
 	defer disc.Close()
 
 	respN, err := disc.RequestENR(n)
@@ -169,7 +168,7 @@ func discv4RequestRecord(ctx *cli.Context) error {
 
 func discv4Resolve(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
-	disc, _ := startV4(ctx)
+	disc := startV4(ctx)
 	defer disc.Close()
 
 	fmt.Println(disc.Resolve(n).String())
@@ -178,7 +177,7 @@ func discv4Resolve(ctx *cli.Context) error {
 
 func discv4ResolveJSON(ctx *cli.Context) error {
 	if ctx.NArg() < 1 {
-		return errors.New("need nodes file as argument")
+		return fmt.Errorf("need nodes file as argument")
 	}
 	nodesFile := ctx.Args().Get(0)
 	inputSet := make(nodeSet)
@@ -196,13 +195,10 @@ func discv4ResolveJSON(ctx *cli.Context) error {
 		nodeargs = append(nodeargs, n)
 	}
 
-	disc, config := startV4(ctx)
+	// Run the crawler.
+	disc := startV4(ctx)
 	defer disc.Close()
-
-	c, err := newCrawler(inputSet, config.Bootnodes, disc, enode.IterNodes(nodeargs))
-	if err != nil {
-		return err
-	}
+	c := newCrawler(inputSet, disc, enode.IterNodes(nodeargs))
 	c.revalidateInterval = 0
 	output := c.run(0, 1)
 	writeNodesJSON(nodesFile, output)
@@ -211,21 +207,17 @@ func discv4ResolveJSON(ctx *cli.Context) error {
 
 func discv4Crawl(ctx *cli.Context) error {
 	if ctx.NArg() < 1 {
-		return errors.New("need nodes file as argument")
+		return fmt.Errorf("need nodes file as argument")
 	}
 	nodesFile := ctx.Args().First()
-	inputSet := make(nodeSet)
+	var inputSet nodeSet
 	if common.FileExist(nodesFile) {
 		inputSet = loadNodesJSON(nodesFile)
 	}
 
-	disc, config := startV4(ctx)
+	disc := startV4(ctx)
 	defer disc.Close()
-
-	c, err := newCrawler(inputSet, config.Bootnodes, disc, disc.RandomNodes())
-	if err != nil {
-		return err
-	}
+	c := newCrawler(inputSet, disc, disc.RandomNodes())
 	c.revalidateInterval = 10 * time.Minute
 	output := c.run(ctx.Duration(crawlTimeoutFlag.Name), ctx.Int(crawlParallelismFlag.Name))
 	writeNodesJSON(nodesFile, output)
@@ -236,7 +228,7 @@ func discv4Crawl(ctx *cli.Context) error {
 func discv4Test(ctx *cli.Context) error {
 	// Configure test package globals.
 	if !ctx.IsSet(remoteEnodeFlag.Name) {
-		return fmt.Errorf("missing -%v", remoteEnodeFlag.Name)
+		return fmt.Errorf("Missing -%v", remoteEnodeFlag.Name)
 	}
 	v4test.Remote = ctx.String(remoteEnodeFlag.Name)
 	v4test.Listen1 = ctx.String(testListen1Flag.Name)
@@ -245,14 +237,14 @@ func discv4Test(ctx *cli.Context) error {
 }
 
 // startV4 starts an ephemeral discovery V4 node.
-func startV4(ctx *cli.Context) (*discover.UDPv4, discover.Config) {
+func startV4(ctx *cli.Context) *discover.UDPv4 {
 	ln, config := makeDiscoveryConfig(ctx)
 	socket := listen(ctx, ln)
 	disc, err := discover.ListenV4(socket, ln, config)
 	if err != nil {
 		exit(err)
 	}
-	return disc, config
+	return disc
 }
 
 func makeDiscoveryConfig(ctx *cli.Context) (*enode.LocalNode, discover.Config) {
@@ -344,7 +336,7 @@ func listen(ctx *cli.Context, ln *enode.LocalNode) *net.UDPConn {
 }
 
 func parseBootnodes(ctx *cli.Context) ([]*enode.Node, error) {
-	s := params.MainnetBootnodes
+	s := params.RinkebyBootnodes
 	if ctx.IsSet(bootnodesFlag.Name) {
 		input := ctx.String(bootnodesFlag.Name)
 		if input == "" {

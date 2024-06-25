@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	defaultBodyLimit = 5 * 1024 * 1024
-	contentType      = "application/json"
+	maxRequestContentLength = 1024 * 1024 * 5
+	contentType             = "application/json"
 )
 
 // https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13
@@ -139,7 +139,7 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 	var cfg clientConfig
 	cfg.httpClient = client
 	fn := newClientTransportHTTP(endpoint, &cfg)
-	return newClient(context.Background(), &cfg, fn)
+	return newClient(context.Background(), fn)
 }
 
 func newClientTransportHTTP(endpoint string, cfg *clientConfig) reconnectFunc {
@@ -176,12 +176,11 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 	}
 	defer respBody.Close()
 
-	var resp jsonrpcMessage
-	batch := [1]*jsonrpcMessage{&resp}
-	if err := json.NewDecoder(respBody).Decode(&resp); err != nil {
+	var respmsg jsonrpcMessage
+	if err := json.NewDecoder(respBody).Decode(&respmsg); err != nil {
 		return err
 	}
-	op.resp <- batch[:]
+	op.resp <- &respmsg
 	return nil
 }
 
@@ -192,12 +191,16 @@ func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonr
 		return err
 	}
 	defer respBody.Close()
-
-	var respmsgs []*jsonrpcMessage
+	var respmsgs []jsonrpcMessage
 	if err := json.NewDecoder(respBody).Decode(&respmsgs); err != nil {
 		return err
 	}
-	op.resp <- respmsgs
+	if len(respmsgs) != len(msgs) {
+		return fmt.Errorf("batch has %d requests but response has %d: %w", len(msgs), len(respmsgs), ErrBadResult)
+	}
+	for i := 0; i < len(respmsgs); i++ {
+		op.resp <- &respmsgs[i]
+	}
 	return nil
 }
 
@@ -253,8 +256,8 @@ type httpServerConn struct {
 	r *http.Request
 }
 
-func (s *Server) newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
-	body := io.LimitReader(r.Body, int64(s.httpBodyLimit))
+func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
+	body := io.LimitReader(r.Body, maxRequestContentLength)
 	conn := &httpServerConn{Reader: body, Writer: w, r: r}
 
 	encoder := func(v any, isErrorResponse bool) error {
@@ -312,7 +315,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	if code, err := s.validateRequest(r); err != nil {
+	if code, err := validateRequest(r); err != nil {
 		http.Error(w, err.Error(), code)
 		return
 	}
@@ -330,19 +333,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// until EOF, writes the response to w, and orders the server to process a
 	// single request.
 	w.Header().Set("content-type", contentType)
-	codec := s.newHTTPServerConn(r, w)
+	codec := newHTTPServerConn(r, w)
 	defer codec.close()
 	s.serveSingleRequest(ctx, codec)
 }
 
 // validateRequest returns a non-zero response code and error message if the
 // request is invalid.
-func (s *Server) validateRequest(r *http.Request) (int, error) {
+func validateRequest(r *http.Request) (int, error) {
 	if r.Method == http.MethodPut || r.Method == http.MethodDelete {
 		return http.StatusMethodNotAllowed, errors.New("method not allowed")
 	}
-	if r.ContentLength > int64(s.httpBodyLimit) {
-		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, s.httpBodyLimit)
+	if r.ContentLength > maxRequestContentLength {
+		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, maxRequestContentLength)
 		return http.StatusRequestEntityTooLarge, err
 	}
 	// Allow OPTIONS (regardless of content-type)

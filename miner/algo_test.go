@@ -9,11 +9,10 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/txpool"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 var algoTests = []*algoTest{
@@ -24,7 +23,7 @@ var algoTests = []*algoTest{
 		// The tx paying the highest gas price should be included.
 		Name:   "simple",
 		Header: &types.Header{GasLimit: 21_000},
-		Alloc: []types.Account{
+		Alloc: []core.GenesisAccount{
 			{Balance: big.NewInt(21_000)},
 			{Balance: big.NewInt(2 * 21_000)},
 		},
@@ -38,9 +37,8 @@ var algoTests = []*algoTest{
 				},
 			}
 		},
-		WantProfit:          uint256.NewInt(2 * 21_000),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig:     defaultAlgorithmConfig,
+		WantProfit:          big.NewInt(2 * 21_000),
+		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS},
 	},
 	{
 		// Trivial tx pool with 3 txs by two accounts and a block gas limit that only allows two txs
@@ -50,7 +48,7 @@ var algoTests = []*algoTest{
 		// Both txs by account 1 should be included, as they maximize the miners profit.
 		Name:   "lookahead",
 		Header: &types.Header{GasLimit: 63_000},
-		Alloc: []types.Account{
+		Alloc: []core.GenesisAccount{
 			{Balance: big.NewInt(21_000)},
 			{Balance: big.NewInt(3 * 21_000)},
 		},
@@ -65,9 +63,8 @@ var algoTests = []*algoTest{
 				},
 			}
 		},
-		WantProfit:          uint256.NewInt(4 * 21_000),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig:     defaultAlgorithmConfig,
+		WantProfit:          big.NewInt(4 * 21_000),
+		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS},
 	},
 	{
 		// Trivial bundle with one tx that reverts but is not allowed to revert.
@@ -75,7 +72,7 @@ var algoTests = []*algoTest{
 		// Bundle should not be included.
 		Name:   "atomic-bundle-no-revert",
 		Header: &types.Header{GasLimit: 50_000},
-		Alloc: []types.Account{
+		Alloc: []core.GenesisAccount{
 			{Balance: big.NewInt(50_000)},
 			{Code: contractRevert},
 		},
@@ -84,9 +81,8 @@ var algoTests = []*algoTest{
 				{Txs: types.Transactions{sign(0, &types.LegacyTx{Nonce: 0, Gas: 50_000, To: acc(1), GasPrice: big.NewInt(1)})}},
 			}
 		},
-		WantProfit:          uint256.NewInt(0),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig:     defaultAlgorithmConfig,
+		WantProfit:          big.NewInt(0),
+		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS},
 	},
 	{
 		// Trivial bundle with one tx that reverts and is allowed to revert.
@@ -94,7 +90,7 @@ var algoTests = []*algoTest{
 		// Bundle should be included.
 		Name:   "atomic-bundle-revert",
 		Header: &types.Header{GasLimit: 50_000},
-		Alloc: []types.Account{
+		Alloc: []core.GenesisAccount{
 			{Balance: big.NewInt(50_000)},
 			{Code: contractRevert},
 		},
@@ -106,67 +102,8 @@ var algoTests = []*algoTest{
 				},
 			}
 		},
-		WantProfit:          uint256.NewInt(50_000),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig:     defaultAlgorithmConfig,
-	},
-	{
-		// Trivial bundle with one tx that has nonce error and fails.
-		//
-		// Bundle should NOT be included since DropRevertibleTxOnErr is enabled.
-		Name:   "atomic-bundle-nonce-error-and-discard",
-		Header: &types.Header{GasLimit: 50_000},
-		Alloc: []types.Account{
-			{Balance: big.NewInt(50_000)},
-			{Code: contractRevert},
-		},
-		Bundles: func(acc accByIndex, sign signByIndex, txs txByAccIndexAndNonce) []*bundle {
-			return []*bundle{
-				{
-					Txs:                types.Transactions{sign(0, &types.LegacyTx{Nonce: 1, Gas: 50_000, To: acc(1), GasPrice: big.NewInt(1)})},
-					RevertingTxIndices: []int{0},
-				},
-			}
-		},
-		WantProfit:          common.U2560,
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig: algorithmConfig{
-			DropRevertibleTxOnErr:  true,
-			EnforceProfit:          defaultAlgorithmConfig.EnforceProfit,
-			ProfitThresholdPercent: defaultAlgorithmConfig.ProfitThresholdPercent,
-		},
-	},
-	{
-		// Bundle with two transactions - first tx will revert and second has nonce error
-		//
-		// Bundle SHOULD be included ONLY with first tx since DropRevertibleTxOnErr is enabled.
-		Name: "bundle-with-revert-tx-and-invalid-nonce-discard",
-		Header: &types.Header{
-			GasLimit: 3 * 21_000,
-		},
-		Alloc: []types.Account{
-			{Balance: big.NewInt(3 * 21_000)},
-			{Code: contractRevert},
-		},
-		Bundles: func(acc accByIndex, sign signByIndex, txs txByAccIndexAndNonce) []*bundle {
-			return []*bundle{
-				{
-					Txs:                types.Transactions{sign(0, &types.LegacyTx{Nonce: 0, Gas: 21_000, To: acc(1), GasPrice: big.NewInt(1)})},
-					RevertingTxIndices: []int{0},
-				},
-				{
-					Txs:                types.Transactions{sign(0, &types.LegacyTx{Nonce: 2, Gas: 42_000, To: acc(1), GasPrice: big.NewInt(1)})},
-					RevertingTxIndices: []int{0},
-				},
-			}
-		},
-		WantProfit:          uint256.NewInt(21_000),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig: algorithmConfig{
-			DropRevertibleTxOnErr:  true,
-			EnforceProfit:          defaultAlgorithmConfig.EnforceProfit,
-			ProfitThresholdPercent: defaultAlgorithmConfig.ProfitThresholdPercent,
-		},
+		WantProfit:          big.NewInt(50_000),
+		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS},
 	},
 	{
 		// Single failing tx that is included in the tx pool and in a bundle that is not allowed to
@@ -175,7 +112,7 @@ var algoTests = []*algoTest{
 		// Tx should be included.
 		Name:   "simple-contradiction",
 		Header: &types.Header{GasLimit: 50_000},
-		Alloc: []types.Account{
+		Alloc: []core.GenesisAccount{
 			{Balance: big.NewInt(50_000)},
 			{Code: contractRevert},
 		},
@@ -191,9 +128,8 @@ var algoTests = []*algoTest{
 				{Txs: types.Transactions{txs(0, 0)}},
 			}
 		},
-		WantProfit:          uint256.NewInt(50_000),
-		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS, ALGO_GREEDY_MULTISNAP, ALGO_GREEDY_BUCKETS_MULTISNAP},
-		AlgorithmConfig:     defaultAlgorithmConfig,
+		WantProfit:          big.NewInt(50_000),
+		SupportedAlgorithms: []AlgoType{ALGO_GREEDY, ALGO_GREEDY_BUCKETS},
 	},
 }
 
@@ -206,7 +142,6 @@ func TestAlgo(t *testing.T) {
 	for _, test := range algoTests {
 		for _, algo := range test.SupportedAlgorithms {
 			testName := fmt.Sprintf("%s-%s", test.Name, algo.String())
-
 			t.Run(testName, func(t *testing.T) {
 				alloc, txPool, bundles, err := test.build(signer, 1)
 				if err != nil {
@@ -216,7 +151,8 @@ func TestAlgo(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Simulate Bundles: %v", err)
 				}
-				gotProfit, err := runAlgoTest(algo, test.AlgorithmConfig, config, alloc, txPool, simBundles, test.Header, 1)
+
+				gotProfit, err := runAlgoTest(algo, config, alloc, txPool, simBundles, test.Header, 1)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -238,8 +174,8 @@ func BenchmarkAlgo(b *testing.B) {
 	for _, test := range algoTests {
 		for _, algo := range test.SupportedAlgorithms {
 			for _, scale := range scales {
-				wantScaledProfit := new(uint256.Int).Mul(
-					uint256.NewInt(uint64(scale)),
+				wantScaledProfit := new(big.Int).Mul(
+					big.NewInt(int64(scale)),
 					test.WantProfit,
 				)
 
@@ -254,30 +190,20 @@ func BenchmarkAlgo(b *testing.B) {
 					}
 
 					b.ResetTimer()
-					var txPoolCopy map[common.Address][]*txpool.LazyTransaction
+					var txPoolCopy map[common.Address]types.Transactions
 					for i := 0; i < b.N; i++ {
 						// Note: copy is needed as the greedyAlgo modifies the txPool.
 						func() {
 							b.StopTimer()
 							defer b.StartTimer()
 
-							txPoolCopy = make(map[common.Address][]*txpool.LazyTransaction, len(txPool))
+							txPoolCopy = make(map[common.Address]types.Transactions, len(txPool))
 							for addr, txs := range txPool {
-								for _, tx := range txs {
-									txPoolCopy[addr] = append(txPoolCopy[addr], &txpool.LazyTransaction{
-										Pool:      tx.Pool,
-										Hash:      tx.Hash,
-										Tx:        tx.Tx,
-										Time:      tx.Time,
-										GasFeeCap: tx.GasFeeCap,
-										GasTipCap: tx.GasTipCap,
-										GasPrice:  tx.GasPrice,
-									})
-								}
+								txPoolCopy[addr] = txs
 							}
 						}()
 
-						gotProfit, err := runAlgoTest(algo, test.AlgorithmConfig, config, alloc, txPoolCopy, simBundles, test.Header, scale)
+						gotProfit, err := runAlgoTest(algo, config, alloc, txPoolCopy, simBundles, test.Header, scale)
 						if err != nil {
 							b.Fatal(err)
 						}
@@ -292,39 +218,30 @@ func BenchmarkAlgo(b *testing.B) {
 }
 
 // runAlgo executes a single algoTest case and returns the profit.
-func runAlgoTest(
-	algo AlgoType, algoConf algorithmConfig,
-	config *params.ChainConfig, alloc types.GenesisAlloc,
-	txPool map[common.Address][]*txpool.LazyTransaction, bundles []types.SimulatedBundle, header *types.Header, scale int,
-) (gotProfit *uint256.Int, err error) {
+func runAlgoTest(algo AlgoType, config *params.ChainConfig, alloc core.GenesisAlloc,
+	txPool map[common.Address]types.Transactions, bundles []types.SimulatedBundle, header *types.Header, scale int) (gotProfit *big.Int, err error) {
 	var (
-		statedb, chData = genTestSetupWithAlloc(config, alloc, GasLimit)
+		statedb, chData = genTestSetupWithAlloc(config, alloc)
 		env             = newEnvironment(chData, statedb, header.Coinbase, header.GasLimit*uint64(scale), header.BaseFee)
 		resultEnv       *environment
 	)
 
 	// build block
 	switch algo {
-	case ALGO_GREEDY:
-		builder := newGreedyBuilder(chData.chain, chData.chainConfig, &algoConf, nil, env, nil, nil)
-		resultEnv, _, _ = builder.buildBlock(bundles, nil, txPool)
-	case ALGO_GREEDY_MULTISNAP:
-		builder := newGreedyMultiSnapBuilder(chData.chain, chData.chainConfig, &algoConf, nil, env, nil, nil)
-		resultEnv, _, _ = builder.buildBlock(bundles, nil, txPool)
 	case ALGO_GREEDY_BUCKETS:
-		builder := newGreedyBucketsBuilder(chData.chain, chData.chainConfig, &algoConf, nil, env, nil, nil)
+		builder := newGreedyBucketsBuilder(chData.chain, chData.chainConfig, nil, nil, env, nil, nil)
 		resultEnv, _, _ = builder.buildBlock(bundles, nil, txPool)
-	case ALGO_GREEDY_BUCKETS_MULTISNAP:
-		builder := newGreedyBucketsMultiSnapBuilder(chData.chain, chData.chainConfig, &algoConf, nil, env, nil, nil)
+	case ALGO_GREEDY:
+		builder := newGreedyBuilder(chData.chain, chData.chainConfig, nil, env, nil, nil)
 		resultEnv, _, _ = builder.buildBlock(bundles, nil, txPool)
 	}
 	return resultEnv.profit, nil
 }
 
 // simulateBundles simulates bundles and returns the simulated bundles.
-func simulateBundles(config *params.ChainConfig, header *types.Header, alloc types.GenesisAlloc, bundles []types.MevBundle) ([]types.SimulatedBundle, error) {
+func simulateBundles(config *params.ChainConfig, header *types.Header, alloc core.GenesisAlloc, bundles []types.MevBundle) ([]types.SimulatedBundle, error) {
 	var (
-		statedb, chData = genTestSetupWithAlloc(config, alloc, GasLimit)
+		statedb, chData = genTestSetupWithAlloc(config, alloc)
 		env             = newEnvironment(chData, statedb, header.Coinbase, header.GasLimit, header.BaseFee)
 
 		simBundles = make([]types.SimulatedBundle, 0)
@@ -348,7 +265,7 @@ type algoTest struct {
 	Header *types.Header // Header of the block to build
 
 	// Genesis accounts as slice.
-	Alloc []types.Account
+	Alloc []core.GenesisAccount
 
 	// TxPool creation function. The returned tx pool maps from accounts (by
 	// index, referencing the Alloc slice index) to a slice of transactions.
@@ -360,11 +277,9 @@ type algoTest struct {
 	// Bundles creation function.
 	Bundles func(accByIndex, signByIndex, txByAccIndexAndNonce) []*bundle
 
-	WantProfit *uint256.Int // Expected block profit
+	WantProfit *big.Int // Expected block profit
 
 	SupportedAlgorithms []AlgoType
-
-	AlgorithmConfig algorithmConfig
 }
 
 // setDefaults sets default values for the algoTest.
@@ -388,7 +303,7 @@ func (test *algoTest) setDefaults() {
 //
 // The scale parameter can be used to scale up the number of the provided scenario
 // of the algoTest inside the returned genesis alloc and tx pool.
-func (test *algoTest) build(signer types.Signer, scale int) (alloc types.GenesisAlloc, txPool map[common.Address][]*txpool.LazyTransaction, bundles []types.MevBundle, err error) {
+func (test *algoTest) build(signer types.Signer, scale int) (alloc core.GenesisAlloc, txPool map[common.Address]types.Transactions, bundles []types.MevBundle, err error) {
 	test.once.Do(test.setDefaults)
 
 	// generate accounts
@@ -396,8 +311,8 @@ func (test *algoTest) build(signer types.Signer, scale int) (alloc types.Genesis
 	addrs, prvs := genRandAccs(n * scale)
 
 	// build alloc
-	alloc = make(types.GenesisAlloc, n*scale)
-	txPool = make(map[common.Address][]*txpool.LazyTransaction)
+	alloc = make(core.GenesisAlloc, n*scale)
+	txPool = make(map[common.Address]types.Transactions)
 	bundles = make([]types.MevBundle, 0)
 
 	for s := 0; s < scale; s++ {
@@ -417,17 +332,9 @@ func (test *algoTest) build(signer types.Signer, scale int) (alloc types.Genesis
 					panic(fmt.Sprintf("invalid account %d, should be in [0, %d]", i, n-1))
 				}
 
-				signedTxs := make([]*txpool.LazyTransaction, len(txs))
+				signedTxs := make(types.Transactions, len(txs))
 				for j, tx := range txs {
-					signedTx := types.MustSignNewTx(prvs[s*n+i], signer, tx)
-					signedTxs[j] = &txpool.LazyTransaction{
-						Hash:      signedTx.Hash(),
-						Tx:        signedTx,
-						Time:      signedTx.Time(),
-						GasFeeCap: uint256.MustFromBig(signedTx.GasFeeCap()),
-						GasTipCap: uint256.MustFromBig(signedTx.GasTipCap()),
-						GasPrice:  uint256.MustFromBig(signedTx.GasPrice()),
-					}
+					signedTxs[j] = types.MustSignNewTx(prvs[s*n+i], signer, tx)
 				}
 				txPool[addrs[s*n+i]] = signedTxs
 			}
@@ -477,7 +384,7 @@ func signByIndexFunc(prvs []*ecdsa.PrivateKey, signer types.Signer) signByIndex 
 // genesis account with the given index.
 type txByAccIndexAndNonce func(int, uint64) *types.Transaction
 
-func txByAccIndexAndNonceFunc(accs []common.Address, txPool map[common.Address][]*txpool.LazyTransaction) txByAccIndexAndNonce {
+func txByAccIndexAndNonceFunc(accs []common.Address, txPool map[common.Address]types.Transactions) txByAccIndexAndNonce {
 	return func(i int, nonce uint64) *types.Transaction {
 		if 0 > i || i >= len(accs) {
 			panic(fmt.Sprintf("invalid account %d, should be in [0, %d]", i, len(accs)-1))
@@ -487,8 +394,8 @@ func txByAccIndexAndNonceFunc(accs []common.Address, txPool map[common.Address][
 
 		// q&d: iterate to find nonce
 		for _, tx := range txs {
-			if tx.Tx.Nonce() == nonce {
-				return tx.Tx
+			if tx.Nonce() == nonce {
+				return tx
 			}
 		}
 		panic(fmt.Sprintf("tx for account %d with nonce %d does not exist", i, nonce))

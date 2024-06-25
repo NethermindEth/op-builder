@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
@@ -26,7 +27,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,14 +40,16 @@ import (
 	"github.com/ethereum/go-ethereum/builder"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
+	"github.com/ethereum/go-ethereum/core/txpool"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/eth/catalyst"
+	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/filters"
@@ -59,6 +61,8 @@ import (
 	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/les"
+	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/exp"
@@ -70,10 +74,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/triedb"
-	"github.com/ethereum/go-ethereum/triedb/hashdb"
-	"github.com/ethereum/go-ethereum/triedb/pathdb"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -101,8 +103,8 @@ var (
 	}
 	DBEngineFlag = &cli.StringFlag{
 		Name:     "db.engine",
-		Usage:    "Backing database implementation to use ('pebble' or 'leveldb')",
-		Value:    node.DefaultConfig.DBEngine,
+		Usage:    "Backing database implementation to use ('leveldb' or 'pebble')",
+		Value:    "leveldb",
 		Category: flags.EthCategory,
 	}
 	AncientFlag = &flags.DirectoryFlag{
@@ -133,13 +135,18 @@ var (
 	}
 	NetworkIdFlag = &cli.Uint64Flag{
 		Name:     "networkid",
-		Usage:    "Explicitly set network id (integer)(For testnets: use --goerli, --sepolia, --holesky instead)",
+		Usage:    "Explicitly set network id (integer)(For testnets: use --rinkeby, --goerli, --sepolia instead)",
 		Value:    ethconfig.Defaults.NetworkId,
 		Category: flags.EthCategory,
 	}
 	MainnetFlag = &cli.BoolFlag{
 		Name:     "mainnet",
 		Usage:    "Ethereum mainnet",
+		Category: flags.EthCategory,
+	}
+	RinkebyFlag = &cli.BoolFlag{
+		Name:     "rinkeby",
+		Usage:    "Rinkeby network: pre-configured proof-of-authority test network",
 		Category: flags.EthCategory,
 	}
 	GoerliFlag = &cli.BoolFlag{
@@ -152,18 +159,14 @@ var (
 		Usage:    "Sepolia network: pre-configured proof-of-work test network",
 		Category: flags.EthCategory,
 	}
-	HoleskyFlag = &cli.BoolFlag{
-		Name:     "holesky",
-		Usage:    "Holesky network: pre-configured proof-of-stake test network",
-		Category: flags.EthCategory,
-	}
+
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
 		Usage:    "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
 		Category: flags.DevCategory,
 	}
-	DeveloperPeriodFlag = &cli.Uint64Flag{
+	DeveloperPeriodFlag = &cli.IntFlag{
 		Name:     "dev.period",
 		Usage:    "Block period to use in developer mode (0 = mine only if transaction pending)",
 		Category: flags.DevCategory,
@@ -222,10 +225,28 @@ var (
 	}
 
 	defaultSyncMode = ethconfig.Defaults.SyncMode
-	SnapshotFlag    = &cli.BoolFlag{
+	SyncModeFlag    = &flags.TextMarshalerFlag{
+		Name:     "syncmode",
+		Usage:    `Blockchain sync mode ("snap", "full" or "light")`,
+		Value:    &defaultSyncMode,
+		Category: flags.EthCategory,
+	}
+	GCModeFlag = &cli.StringFlag{
+		Name:     "gcmode",
+		Usage:    `Blockchain garbage collection mode ("full", "archive")`,
+		Value:    "full",
+		Category: flags.EthCategory,
+	}
+	SnapshotFlag = &cli.BoolFlag{
 		Name:     "snapshot",
 		Usage:    `Enables snapshot-database mode (default = enable)`,
 		Value:    true,
+		Category: flags.EthCategory,
+	}
+	TxLookupLimitFlag = &cli.Uint64Flag{
+		Name:     "txlookuplimit",
+		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",
+		Value:    ethconfig.Defaults.TxLookupLimit,
 		Category: flags.EthCategory,
 	}
 	LightKDFFlag = &cli.BoolFlag{
@@ -238,51 +259,137 @@ var (
 		Usage:    "Comma separated block number-to-hash mappings to require for peering (<number>=<hash>)",
 		Category: flags.EthCategory,
 	}
+	LegacyWhitelistFlag = &cli.StringFlag{
+		Name:     "whitelist",
+		Usage:    "Comma separated block number-to-hash mappings to enforce (<number>=<hash>) (deprecated in favor of --eth.requiredblocks)",
+		Category: flags.DeprecatedCategory,
+	}
 	BloomFilterSizeFlag = &cli.Uint64Flag{
 		Name:     "bloomfilter.size",
 		Usage:    "Megabytes of memory allocated to bloom-filter for pruning",
 		Value:    2048,
 		Category: flags.EthCategory,
 	}
-	OverrideCancun = &cli.Uint64Flag{
-		Name:     "override.cancun",
-		Usage:    "Manually specify the Cancun fork timestamp, overriding the bundled setting",
+	OverrideShanghai = &cli.Uint64Flag{
+		Name:     "override.shanghai",
+		Usage:    "Manually specify the Shanghai fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
-	OverrideVerkle = &cli.Uint64Flag{
-		Name:     "override.verkle",
-		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
+	OverrideOptimismBedrock = &flags.BigFlag{
+		Name:     "override.bedrock",
+		Usage:    "Manually specify OptimsimBedrock, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
-	SyncModeFlag = &flags.TextMarshalerFlag{
-		Name:     "syncmode",
-		Usage:    `Blockchain sync mode ("snap" or "full")`,
-		Value:    &defaultSyncMode,
-		Category: flags.StateCategory,
+	OverrideOptimismRegolith = &flags.BigFlag{
+		Name:     "override.regolith",
+		Usage:    "Manually specify the OptimsimRegolith fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
 	}
-	GCModeFlag = &cli.StringFlag{
-		Name:     "gcmode",
-		Usage:    `Blockchain garbage collection mode, only relevant in state.scheme=hash ("full", "archive")`,
-		Value:    "full",
-		Category: flags.StateCategory,
+	OverrideOptimism = &cli.BoolFlag{
+		Name:     "override.optimism",
+		Usage:    "Manually specify optimism",
+		Category: flags.EthCategory,
 	}
-	StateSchemeFlag = &cli.StringFlag{
-		Name:     "state.scheme",
-		Usage:    "Scheme to use for storing ethereum state ('hash' or 'path')",
-		Category: flags.StateCategory,
+	// Light server and client settings
+	LightServeFlag = &cli.IntFlag{
+		Name:     "light.serve",
+		Usage:    "Maximum percentage of time allowed for serving LES requests (multi-threaded processing allows values over 100)",
+		Value:    ethconfig.Defaults.LightServ,
+		Category: flags.LightCategory,
 	}
-	StateHistoryFlag = &cli.Uint64Flag{
-		Name:     "history.state",
-		Usage:    "Number of recent blocks to retain state history for (default = 90,000 blocks, 0 = entire chain)",
-		Value:    ethconfig.Defaults.StateHistory,
-		Category: flags.StateCategory,
+	LightIngressFlag = &cli.IntFlag{
+		Name:     "light.ingress",
+		Usage:    "Incoming bandwidth limit for serving light clients (kilobytes/sec, 0 = unlimited)",
+		Value:    ethconfig.Defaults.LightIngress,
+		Category: flags.LightCategory,
 	}
-	TransactionHistoryFlag = &cli.Uint64Flag{
-		Name:     "history.transactions",
-		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",
-		Value:    ethconfig.Defaults.TransactionHistory,
-		Category: flags.StateCategory,
+	LightEgressFlag = &cli.IntFlag{
+		Name:     "light.egress",
+		Usage:    "Outgoing bandwidth limit for serving light clients (kilobytes/sec, 0 = unlimited)",
+		Value:    ethconfig.Defaults.LightEgress,
+		Category: flags.LightCategory,
 	}
+	LightMaxPeersFlag = &cli.IntFlag{
+		Name:     "light.maxpeers",
+		Usage:    "Maximum number of light clients to serve, or light servers to attach to",
+		Value:    ethconfig.Defaults.LightPeers,
+		Category: flags.LightCategory,
+	}
+	UltraLightServersFlag = &cli.StringFlag{
+		Name:     "ulc.servers",
+		Usage:    "List of trusted ultra-light servers",
+		Value:    strings.Join(ethconfig.Defaults.UltraLightServers, ","),
+		Category: flags.LightCategory,
+	}
+	UltraLightFractionFlag = &cli.IntFlag{
+		Name:     "ulc.fraction",
+		Usage:    "Minimum % of trusted ultra-light servers required to announce a new head",
+		Value:    ethconfig.Defaults.UltraLightFraction,
+		Category: flags.LightCategory,
+	}
+	UltraLightOnlyAnnounceFlag = &cli.BoolFlag{
+		Name:     "ulc.onlyannounce",
+		Usage:    "Ultra light server sends announcements only",
+		Category: flags.LightCategory,
+	}
+	LightNoPruneFlag = &cli.BoolFlag{
+		Name:     "light.nopruning",
+		Usage:    "Disable ancient light chain data pruning",
+		Category: flags.LightCategory,
+	}
+	LightNoSyncServeFlag = &cli.BoolFlag{
+		Name:     "light.nosyncserve",
+		Usage:    "Enables serving light clients before syncing",
+		Category: flags.LightCategory,
+	}
+
+	// Ethash settings
+	EthashCacheDirFlag = &flags.DirectoryFlag{
+		Name:     "ethash.cachedir",
+		Usage:    "Directory to store the ethash verification caches (default = inside the datadir)",
+		Category: flags.EthashCategory,
+	}
+	EthashCachesInMemoryFlag = &cli.IntFlag{
+		Name:     "ethash.cachesinmem",
+		Usage:    "Number of recent ethash caches to keep in memory (16MB each)",
+		Value:    ethconfig.Defaults.Ethash.CachesInMem,
+		Category: flags.EthashCategory,
+	}
+	EthashCachesOnDiskFlag = &cli.IntFlag{
+		Name:     "ethash.cachesondisk",
+		Usage:    "Number of recent ethash caches to keep on disk (16MB each)",
+		Value:    ethconfig.Defaults.Ethash.CachesOnDisk,
+		Category: flags.EthashCategory,
+	}
+	EthashCachesLockMmapFlag = &cli.BoolFlag{
+		Name:     "ethash.cacheslockmmap",
+		Usage:    "Lock memory maps of recent ethash caches",
+		Category: flags.EthashCategory,
+	}
+	EthashDatasetDirFlag = &flags.DirectoryFlag{
+		Name:     "ethash.dagdir",
+		Usage:    "Directory to store the ethash mining DAGs",
+		Value:    flags.DirectoryString(ethconfig.Defaults.Ethash.DatasetDir),
+		Category: flags.EthashCategory,
+	}
+	EthashDatasetsInMemoryFlag = &cli.IntFlag{
+		Name:     "ethash.dagsinmem",
+		Usage:    "Number of recent ethash mining DAGs to keep in memory (1+GB each)",
+		Value:    ethconfig.Defaults.Ethash.DatasetsInMem,
+		Category: flags.EthashCategory,
+	}
+	EthashDatasetsOnDiskFlag = &cli.IntFlag{
+		Name:     "ethash.dagsondisk",
+		Usage:    "Number of recent ethash mining DAGs to keep on disk (1+GB each)",
+		Value:    ethconfig.Defaults.Ethash.DatasetsOnDisk,
+		Category: flags.EthashCategory,
+	}
+	EthashDatasetsLockMmapFlag = &cli.BoolFlag{
+		Name:     "ethash.dagslockmmap",
+		Usage:    "Lock memory maps for recent ethash mining DAGs",
+		Category: flags.EthashCategory,
+	}
+
 	// Transaction pool settings
 	TxPoolLocalsFlag = &cli.StringFlag{
 		Name:     "txpool.locals",
@@ -297,18 +404,23 @@ var (
 	TxPoolJournalFlag = &cli.StringFlag{
 		Name:     "txpool.journal",
 		Usage:    "Disk journal for local transaction to survive node restarts",
-		Value:    ethconfig.Defaults.TxPool.Journal,
+		Value:    txpool.DefaultConfig.Journal,
+		Category: flags.TxPoolCategory,
+	}
+	TxPoolJournalRemotesFlag = &cli.BoolFlag{
+		Name:     "txpool.journalremotes",
+		Usage:    "Includes remote transactions in the journal",
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolRejournalFlag = &cli.DurationFlag{
 		Name:     "txpool.rejournal",
 		Usage:    "Time interval to regenerate the local transaction journal",
-		Value:    ethconfig.Defaults.TxPool.Rejournal,
+		Value:    txpool.DefaultConfig.Rejournal,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolPriceLimitFlag = &cli.Uint64Flag{
 		Name:     "txpool.pricelimit",
-		Usage:    "Minimum gas price tip to enforce for acceptance into the pool",
+		Usage:    "Minimum gas price limit to enforce for acceptance into the pool",
 		Value:    ethconfig.Defaults.TxPool.PriceLimit,
 		Category: flags.TxPoolCategory,
 	}
@@ -348,30 +460,12 @@ var (
 		Value:    ethconfig.Defaults.TxPool.Lifetime,
 		Category: flags.TxPoolCategory,
 	}
+
 	TxPoolPrivateLifetimeFlag = &cli.DurationFlag{
 		Name:     "txpool.privatelifetime",
 		Usage:    "Maximum amount of time private transactions are withheld from public broadcasting",
 		Value:    ethconfig.Defaults.TxPool.PrivateTxLifetime,
 		Category: flags.TxPoolCategory,
-	}
-	// Blob transaction pool settings
-	BlobPoolDataDirFlag = &cli.StringFlag{
-		Name:     "blobpool.datadir",
-		Usage:    "Data directory to store blob transactions in",
-		Value:    ethconfig.Defaults.BlobPool.Datadir,
-		Category: flags.BlobPoolCategory,
-	}
-	BlobPoolDataCapFlag = &cli.Uint64Flag{
-		Name:     "blobpool.datacap",
-		Usage:    "Disk space to allocate for pending blob transactions (soft limit)",
-		Value:    ethconfig.Defaults.BlobPool.Datacap,
-		Category: flags.BlobPoolCategory,
-	}
-	BlobPoolPriceBumpFlag = &cli.Uint64Flag{
-		Name:     "blobpool.pricebump",
-		Usage:    "Price bump percentage to replace an already existing blob transaction",
-		Value:    ethconfig.Defaults.BlobPool.PriceBump,
-		Category: flags.BlobPoolCategory,
 	}
 	// Performance tuning settings
 	CacheFlag = &cli.IntFlag{
@@ -390,6 +484,18 @@ var (
 		Name:     "cache.trie",
 		Usage:    "Percentage of cache memory allowance to use for trie caching (default = 15% full mode, 30% archive mode)",
 		Value:    15,
+		Category: flags.PerfCategory,
+	}
+	CacheTrieJournalFlag = &cli.StringFlag{
+		Name:     "cache.trie.journal",
+		Usage:    "Disk journal directory for trie cache to survive node restarts",
+		Value:    ethconfig.Defaults.TrieCleanCacheJournal,
+		Category: flags.PerfCategory,
+	}
+	CacheTrieRejournalFlag = &cli.DurationFlag{
+		Name:     "cache.trie.rejournal",
+		Usage:    "Time interval to regenerate the trie cache journal",
+		Value:    ethconfig.Defaults.TrieCleanCacheRejournal,
 		Category: flags.PerfCategory,
 	}
 	CacheGCFlag = &cli.IntFlag{
@@ -425,17 +531,27 @@ var (
 		Usage:    "Raise the open file descriptor resource limit (default = system fd limit)",
 		Category: flags.PerfCategory,
 	}
-	CryptoKZGFlag = &cli.StringFlag{
-		Name:     "crypto.kzg",
-		Usage:    "KZG library implementation to use; gokzg (recommended) or ckzg",
-		Value:    "gokzg",
-		Category: flags.PerfCategory,
-	}
 
 	// Miner settings
 	MiningEnabledFlag = &cli.BoolFlag{
 		Name:     "mine",
 		Usage:    "Enable mining",
+		Category: flags.MinerCategory,
+	}
+	MinerThreadsFlag = &cli.IntFlag{
+		Name:     "miner.threads",
+		Usage:    "Number of CPU threads to use for mining",
+		Value:    0,
+		Category: flags.MinerCategory,
+	}
+	MinerNotifyFlag = &cli.StringFlag{
+		Name:     "miner.notify",
+		Usage:    "Comma separated HTTP URL list to notify of new work packages",
+		Category: flags.MinerCategory,
+	}
+	MinerNotifyFullFlag = &cli.BoolFlag{
+		Name:     "miner.notify.full",
+		Usage:    "Notify with pending block headers instead of work packages",
 		Category: flags.MinerCategory,
 	}
 	MinerGasLimitFlag = &cli.Uint64Flag{
@@ -452,7 +568,7 @@ var (
 	}
 	MinerAlgoTypeFlag = &cli.StringFlag{
 		Name:     "miner.algotype",
-		Usage:    "[NOTE: Deprecated, please use builder.algotype instead] Block building algorithm to use [=mev-geth] (mev-geth, greedy, greedy-buckets)",
+		Usage:    "Block building algorithm to use [=mev-geth] (mev-geth, greedy, greedy-buckets)",
 		Value:    "mev-geth",
 		Category: flags.MinerCategory,
 	}
@@ -472,6 +588,11 @@ var (
 		Value:    ethconfig.Defaults.Miner.Recommit,
 		Category: flags.MinerCategory,
 	}
+	MinerNoVerifyFlag = &cli.BoolFlag{
+		Name:     "miner.noverify",
+		Usage:    "Disable remote sealing verification",
+		Category: flags.MinerCategory,
+	}
 	MinerMaxMergedBundlesFlag = &cli.IntFlag{
 		Name:     "miner.maxmergedbundles",
 		Usage:    "flashbots - The maximum amount of bundles to merge. The miner will run this many workers in parallel to calculate if the full block is more profitable with these additional bundles.",
@@ -480,7 +601,8 @@ var (
 	}
 	MinerBlocklistFileFlag = &cli.StringFlag{
 		Name:     "miner.blocklist",
-		Usage:    "[NOTE: Deprecated, please use builder.blacklist] flashbots - Path to JSON file with list of blocked addresses. Miner will ignore txs that touch mentioned addresses.",
+		Usage:    "flashbots - Path to JSON file with list of blocked addresses. Miner will ignore txs that touch mentioned addresses.",
+		Value:    "",
 		Category: flags.MinerCategory,
 	}
 	MinerNewPayloadTimeout = &cli.DurationFlag{
@@ -583,6 +705,11 @@ var (
 		Usage:    "Reporting URL of a ethstats service (nodename:secret@host:port)",
 		Category: flags.MetricsCategory,
 	}
+	FakePoWFlag = &cli.BoolFlag{
+		Name:     "fakepow",
+		Usage:    "Disables proof-of-work verification",
+		Category: flags.LoggingCategory,
+	}
 	NoCompactionFlag = &cli.BoolFlag{
 		Name:     "nocompaction",
 		Usage:    "Disables db compaction after import",
@@ -590,9 +717,9 @@ var (
 	}
 
 	// MISC settings
-	SyncTargetFlag = &cli.StringFlag{
+	SyncTargetFlag = &cli.PathFlag{
 		Name:      "synctarget",
-		Usage:     `Hash of the block to full sync to (dev testing feature)`,
+		Usage:     `File for containing the hex-encoded block-rlp as sync target(dev feature)`,
 		TakesFile: true,
 		Category:  flags.MiscCategory,
 	}
@@ -602,54 +729,15 @@ var (
 		Usage:    "Enable the builder",
 		Category: flags.BuilderCategory,
 	}
-
-	// BuilderAlgoTypeFlag replaces MinerAlgoTypeFlag to move away from deprecated miner package
-	// Note: builder.algotype was previously miner.algotype - this flag is still propagated to the miner configuration,
-	// see setMiner in cmd/utils/flags.go
-	BuilderAlgoTypeFlag = &cli.StringFlag{
-		Name:     "builder.algotype",
-		Usage:    "Block building algorithm to use [=mev-geth] (mev-geth, greedy, greedy-buckets)",
-		Category: flags.BuilderCategory,
-	}
-
-	// BuilderPriceCutoffPercentFlag replaces MinerPriceCutoffPercentFlag to move away from deprecated miner package
-	// Note: builder.price_cutoff_percent was previously miner.price_cutoff_percent -
-	// this flag is still propagated to the miner configuration, see setMiner in cmd/utils/flags.go
-	BuilderPriceCutoffPercentFlag = &cli.IntFlag{
-		Name: "builder.price_cutoff_percent",
-		Usage: "flashbots - The minimum effective gas price threshold used for bucketing transactions by price. " +
-			"For example if the top transaction in a list has an effective gas price of 1000 wei and price_cutoff_percent " +
-			"is 10 (i.e. 10%), then the minimum effective gas price included in the same bucket as the top transaction " +
-			"is (1000 * 10%) = 100 wei.\n" +
-			"NOTE: This flag is only used when builder.algotype=greedy-buckets",
-		Value:    ethconfig.Defaults.Miner.PriceCutoffPercent,
-		Category: flags.BuilderCategory,
-		EnvVars:  []string{"FLASHBOTS_BUILDER_PRICE_CUTOFF_PERCENT"},
-	}
-
 	BuilderEnableValidatorChecks = &cli.BoolFlag{
 		Name:     "builder.validator_checks",
 		Usage:    "Enable the validator checks",
 		Category: flags.BuilderCategory,
 	}
 	BuilderBlockValidationBlacklistSourceFilePath = &cli.StringFlag{
-		Name: "builder.blacklist",
-		Usage: "Path to file containing blacklisted addresses, json-encoded list of strings. " +
-			"Builder will ignore transactions that touch mentioned addresses. This flag is also used for block validation API.\n" +
-			"NOTE: builder.validation_blacklist is deprecated and will be removed in the future in favor of builder.blacklist",
-		Aliases:  []string{"builder.validation_blacklist"},
-		Category: flags.BuilderCategory,
-	}
-	BuilderBlockValidationUseBalanceDiff = &cli.BoolFlag{
-		Name:     "builder.validation_use_balance_diff",
-		Usage:    "Block validation API will use fee recipient balance difference for profit calculation.",
-		Value:    false,
-		Category: flags.BuilderCategory,
-	}
-	BuilderBlockValidationExcludeWithdrawals = &cli.BoolFlag{
-		Name:     "builder.validation_exclude_withdrawals",
-		Usage:    "Block validation API will exclude CL withdrawals to the fee recipient from the balance delta.",
-		Value:    false,
+		Name:     "builder.validation_blacklist",
+		Usage:    "Path to file containing blacklisted addresses, json-encoded list of strings",
+		Value:    "",
 		Category: flags.BuilderCategory,
 	}
 	BuilderEnableLocalRelay = &cli.BoolFlag{
@@ -788,25 +876,9 @@ var (
 		Category: flags.BuilderCategory,
 	}
 
-	BuilderDiscardRevertibleTxOnErr = &cli.BoolFlag{
-		Name: "builder.discard_revertible_tx_on_error",
-		Usage: "When enabled, if a transaction submitted as part of a bundle in a send bundle request has error on commit, " +
-			"and its hash is specified as one that can revert in the request body, the builder will discard the hash of the failed transaction from the submitted bundle." +
-			"For additional details on the structure of the request body, see https://docs.flashbots.net/flashbots-mev-share/searchers/understanding-bundles#bundle-definition",
-		EnvVars:  []string{"FLASHBOTS_BUILDER_DISCARD_REVERTIBLE_TX_ON_ERROR"},
-		Value:    builder.DefaultConfig.DiscardRevertibleTxOnErr,
-		Category: flags.BuilderCategory,
-	}
-
 	BuilderEnableCancellations = &cli.BoolFlag{
 		Name:     "builder.cancellations",
 		Usage:    "Enable cancellations for the builder",
-		Category: flags.BuilderCategory,
-	}
-
-	BuilderBlockProcessorURL = &cli.StringFlag{
-		Name:     "builder.block_processor_url",
-		Usage:    "RPC URL for the block processor",
 		Category: flags.BuilderCategory,
 	}
 
@@ -929,18 +1001,6 @@ var (
 		Usage:    "Allow for unprotected (non EIP155 signed) transactions to be submitted via RPC",
 		Category: flags.APICategory,
 	}
-	BatchRequestLimit = &cli.IntFlag{
-		Name:     "rpc.batch-request-limit",
-		Usage:    "Maximum number of requests in a batch",
-		Value:    node.DefaultConfig.BatchRequestLimit,
-		Category: flags.APICategory,
-	}
-	BatchResponseMaxSize = &cli.IntFlag{
-		Name:     "rpc.batch-response-max-size",
-		Usage:    "Maximum number of bytes returned from a batched call",
-		Value:    node.DefaultConfig.BatchResponseMaxSize,
-		Category: flags.APICategory,
-	}
 	EnablePersonal = &cli.BoolFlag{
 		Name:     "rpc.enabledeprecatedpersonal",
 		Usage:    "Enables the (deprecated) personal namespace",
@@ -993,16 +1053,8 @@ var (
 		Usage:    "Disables the peer discovery mechanism (manual peer addition)",
 		Category: flags.NetworkingCategory,
 	}
-	DiscoveryV4Flag = &cli.BoolFlag{
-		Name:     "discovery.v4",
-		Aliases:  []string{"discv4"},
-		Usage:    "Enables the V4 discovery mechanism",
-		Category: flags.NetworkingCategory,
-		Value:    true,
-	}
 	DiscoveryV5Flag = &cli.BoolFlag{
-		Name:     "discovery.v5",
-		Aliases:  []string{"discv5"},
+		Name:     "v5disc",
 		Usage:    "Enables the experimental RLPx V5 (Topic Discovery) mechanism",
 		Category: flags.NetworkingCategory,
 	}
@@ -1063,6 +1115,37 @@ var (
 		Category: flags.GasPriceCategory,
 	}
 
+	// Rollup Flags
+	RollupSequencerHTTPFlag = &cli.StringFlag{
+		Name:     "rollup.sequencerhttp",
+		Usage:    "HTTP endpoint for the sequencer mempool",
+		Category: flags.RollupCategory,
+	}
+
+	RollupHistoricalRPCFlag = &cli.StringFlag{
+		Name:     "rollup.historicalrpc",
+		Usage:    "RPC endpoint for historical data.",
+		Category: flags.RollupCategory,
+	}
+
+	RollupHistoricalRPCTimeoutFlag = &cli.StringFlag{
+		Name:     "rollup.historicalrpctimeout",
+		Usage:    "Timeout for historical RPC requests.",
+		Value:    "5s",
+		Category: flags.RollupCategory,
+	}
+
+	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
+		Name:     "rollup.disabletxpoolgossip",
+		Usage:    "Disable transaction pool gossip.",
+		Category: flags.RollupCategory,
+	}
+	RollupComputePendingBlock = &cli.BoolFlag{
+		Name:     "rollup.computependingblock",
+		Usage:    "By default the pending block equals the latest block to save resources and not leak txs from the tx-pool, this flag enables computing of the pending block from the tx-pool instead.",
+		Category: flags.RollupCategory,
+	}
+
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
 		Name:     "metrics",
@@ -1074,6 +1157,7 @@ var (
 		Usage:    "Enable expensive metrics collection and reporting",
 		Category: flags.MetricsCategory,
 	}
+
 	// Builder metrics flag
 	MetricsEnabledBuilderFlag = &cli.BoolFlag{
 		Name:     "metrics.builder",
@@ -1168,37 +1252,41 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 var (
 	// TestnetFlags is the flag group of all built-in supported testnets.
 	TestnetFlags = []cli.Flag{
+		RinkebyFlag,
 		GoerliFlag,
 		SepoliaFlag,
-		HoleskyFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
 	NetworkFlags = append([]cli.Flag{MainnetFlag}, TestnetFlags...)
 
-	// DatabaseFlags is the flag group of all database flags.
-	DatabaseFlags = []cli.Flag{
+	// DatabasePathFlags is the flag group of all database path flags.
+	DatabasePathFlags = []cli.Flag{
 		DataDirFlag,
 		AncientFlag,
 		RemoteDBFlag,
-		DBEngineFlag,
-		StateSchemeFlag,
 		HttpHeaderFlag,
 	}
 )
+
+func init() {
+	if rawdb.PebbleEnabled {
+		DatabasePathFlags = append(DatabasePathFlags, DBEngineFlag)
+	}
+}
 
 // MakeDataDir retrieves the currently requested data directory, terminating
 // if none (or the empty string) is specified. If the node is starting a testnet,
 // then a subdirectory of the specified datadir will be used.
 func MakeDataDir(ctx *cli.Context) string {
 	if path := ctx.String(DataDirFlag.Name); path != "" {
+		if ctx.Bool(RinkebyFlag.Name) {
+			return filepath.Join(path, "rinkeby")
+		}
 		if ctx.Bool(GoerliFlag.Name) {
 			return filepath.Join(path, "goerli")
 		}
 		if ctx.Bool(SepoliaFlag.Name) {
 			return filepath.Join(path, "sepolia")
-		}
-		if ctx.Bool(HoleskyFlag.Name) {
-			return filepath.Join(path, "holesky")
 		}
 		return path
 	}
@@ -1208,7 +1296,7 @@ func MakeDataDir(ctx *cli.Context) string {
 
 // setNodeKey creates a node key from set command line flags, either loading it
 // from a file or as a specified hex value. If neither flags were provided, this
-// method returns nil and an ephemeral key is to be generated.
+// method returns nil and an emphemeral key is to be generated.
 func setNodeKey(ctx *cli.Context, cfg *p2p.Config) {
 	var (
 		hex  = ctx.String(NodeKeyHexFlag.Name)
@@ -1241,45 +1329,35 @@ func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
 
 // setBootstrapNodes creates a list of bootstrap nodes from the command line
 // flags, reverting to pre-configured ones if none have been specified.
-// Priority order for bootnodes configuration:
-//
-// 1. --bootnodes flag
-// 2. Config file
-// 3. Network preset flags (e.g. --goerli)
-// 4. default to mainnet nodes
 func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 	urls := params.MainnetBootnodes
-	if ctx.IsSet(BootnodesFlag.Name) {
+	switch {
+	case ctx.IsSet(BootnodesFlag.Name):
 		urls = SplitAndTrim(ctx.String(BootnodesFlag.Name))
-	} else {
-		if cfg.BootstrapNodes != nil {
-			return // Already set by config file, don't apply defaults.
-		}
-		switch {
-		case ctx.Bool(HoleskyFlag.Name):
-			urls = params.HoleskyBootnodes
-		case ctx.Bool(SepoliaFlag.Name):
-			urls = params.SepoliaBootnodes
-		case ctx.Bool(GoerliFlag.Name):
-			urls = params.GoerliBootnodes
-		}
+	case ctx.Bool(SepoliaFlag.Name):
+		urls = params.SepoliaBootnodes
+	case ctx.Bool(RinkebyFlag.Name):
+		urls = params.RinkebyBootnodes
+	case ctx.Bool(GoerliFlag.Name):
+		urls = params.GoerliBootnodes
 	}
-	cfg.BootstrapNodes = mustParseBootnodes(urls)
-}
 
-func mustParseBootnodes(urls []string) []*enode.Node {
-	nodes := make([]*enode.Node, 0, len(urls))
+	// don't apply defaults if BootstrapNodes is already set
+	if cfg.BootstrapNodes != nil {
+		return
+	}
+
+	cfg.BootstrapNodes = make([]*enode.Node, 0, len(urls))
 	for _, url := range urls {
 		if url != "" {
 			node, err := enode.Parse(enode.ValidSchemes, url)
 			if err != nil {
 				log.Crit("Bootstrap URL invalid", "enode", url, "err", err)
-				return nil
+				continue
 			}
-			nodes = append(nodes, node)
+			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
 		}
 	}
-	return nodes
 }
 
 // setBootstrapNodesV5 creates a list of bootstrap nodes from the command line
@@ -1343,10 +1421,8 @@ func SplitAndTrim(input string) (ret []string) {
 // setHTTP creates the HTTP RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setHTTP(ctx *cli.Context, cfg *node.Config) {
-	if ctx.Bool(HTTPEnabledFlag.Name) {
-		if cfg.HTTPHost == "" {
-			cfg.HTTPHost = "127.0.0.1"
-		}
+	if ctx.Bool(HTTPEnabledFlag.Name) && cfg.HTTPHost == "" {
+		cfg.HTTPHost = "127.0.0.1"
 		if ctx.IsSet(HTTPListenAddrFlag.Name) {
 			cfg.HTTPHost = ctx.String(HTTPListenAddrFlag.Name)
 		}
@@ -1386,14 +1462,6 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 	if ctx.IsSet(AllowUnprotectedTxs.Name) {
 		cfg.AllowUnprotectedTxs = ctx.Bool(AllowUnprotectedTxs.Name)
 	}
-
-	if ctx.IsSet(BatchRequestLimit.Name) {
-		cfg.BatchRequestLimit = ctx.Int(BatchRequestLimit.Name)
-	}
-
-	if ctx.IsSet(BatchResponseMaxSize.Name) {
-		cfg.BatchResponseMaxSize = ctx.Int(BatchResponseMaxSize.Name)
-	}
 }
 
 // setGraphQL creates the GraphQL listener interface string from the set
@@ -1410,10 +1478,8 @@ func setGraphQL(ctx *cli.Context, cfg *node.Config) {
 // setWS creates the WebSocket RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setWS(ctx *cli.Context, cfg *node.Config) {
-	if ctx.Bool(WSEnabledFlag.Name) {
-		if cfg.WSHost == "" {
-			cfg.WSHost = "127.0.0.1"
-		}
+	if ctx.Bool(WSEnabledFlag.Name) && cfg.WSHost == "" {
+		cfg.WSHost = "127.0.0.1"
 		if ctx.IsSet(WSListenAddrFlag.Name) {
 			cfg.WSHost = ctx.String(WSListenAddrFlag.Name)
 		}
@@ -1447,25 +1513,38 @@ func setIPC(ctx *cli.Context, cfg *node.Config) {
 	}
 }
 
-// setLes shows the deprecation warnings for LES flags.
+// setLes configures the les server and ultra light client settings from the command line flags.
 func setLes(ctx *cli.Context, cfg *ethconfig.Config) {
 	if ctx.IsSet(LightServeFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightServeFlag.Name)
+		cfg.LightServ = ctx.Int(LightServeFlag.Name)
 	}
 	if ctx.IsSet(LightIngressFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightIngressFlag.Name)
+		cfg.LightIngress = ctx.Int(LightIngressFlag.Name)
 	}
 	if ctx.IsSet(LightEgressFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightEgressFlag.Name)
+		cfg.LightEgress = ctx.Int(LightEgressFlag.Name)
 	}
 	if ctx.IsSet(LightMaxPeersFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightMaxPeersFlag.Name)
+		cfg.LightPeers = ctx.Int(LightMaxPeersFlag.Name)
+	}
+	if ctx.IsSet(UltraLightServersFlag.Name) {
+		cfg.UltraLightServers = strings.Split(ctx.String(UltraLightServersFlag.Name), ",")
+	}
+	if ctx.IsSet(UltraLightFractionFlag.Name) {
+		cfg.UltraLightFraction = ctx.Int(UltraLightFractionFlag.Name)
+	}
+	if cfg.UltraLightFraction <= 0 && cfg.UltraLightFraction > 100 {
+		log.Error("Ultra light fraction is invalid", "had", cfg.UltraLightFraction, "updated", ethconfig.Defaults.UltraLightFraction)
+		cfg.UltraLightFraction = ethconfig.Defaults.UltraLightFraction
+	}
+	if ctx.IsSet(UltraLightOnlyAnnounceFlag.Name) {
+		cfg.UltraLightOnlyAnnounce = ctx.Bool(UltraLightOnlyAnnounceFlag.Name)
 	}
 	if ctx.IsSet(LightNoPruneFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightNoPruneFlag.Name)
+		cfg.LightNoPrune = ctx.Bool(LightNoPruneFlag.Name)
 	}
 	if ctx.IsSet(LightNoSyncServeFlag.Name) {
-		log.Warn("The light server has been deprecated, please remove this flag", "flag", LightNoSyncServeFlag.Name)
+		cfg.LightNoSyncServe = ctx.Bool(LightNoSyncServeFlag.Name)
 	}
 }
 
@@ -1563,23 +1642,53 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setBootstrapNodes(ctx, cfg)
 	setBootstrapNodesV5(ctx, cfg)
 
+	lightClient := ctx.String(SyncModeFlag.Name) == "light"
+	lightServer := (ctx.Int(LightServeFlag.Name) != 0)
+
+	lightPeers := ctx.Int(LightMaxPeersFlag.Name)
+	if lightClient && !ctx.IsSet(LightMaxPeersFlag.Name) {
+		// dynamic default - for clients we use 1/10th of the default for servers
+		lightPeers /= 10
+	}
+
 	if ctx.IsSet(MaxPeersFlag.Name) {
 		cfg.MaxPeers = ctx.Int(MaxPeersFlag.Name)
+		if lightServer && !ctx.IsSet(LightMaxPeersFlag.Name) {
+			cfg.MaxPeers += lightPeers
+		}
+	} else {
+		if lightServer {
+			cfg.MaxPeers += lightPeers
+		}
+		if lightClient && ctx.IsSet(LightMaxPeersFlag.Name) && cfg.MaxPeers < lightPeers {
+			cfg.MaxPeers = lightPeers
+		}
 	}
-	ethPeers := cfg.MaxPeers
-	log.Info("Maximum peer count", "ETH", ethPeers, "total", cfg.MaxPeers)
+	if !(lightClient || lightServer) {
+		lightPeers = 0
+	}
+	ethPeers := cfg.MaxPeers - lightPeers
+	if lightClient {
+		ethPeers = 0
+	}
+	log.Info("Maximum peer count", "ETH", ethPeers, "LES", lightPeers, "total", cfg.MaxPeers)
 
 	if ctx.IsSet(MaxPendingPeersFlag.Name) {
 		cfg.MaxPendingPeers = ctx.Int(MaxPendingPeersFlag.Name)
 	}
-	if ctx.IsSet(NoDiscoverFlag.Name) {
+	if ctx.IsSet(NoDiscoverFlag.Name) || lightClient {
 		cfg.NoDiscovery = true
 	}
 
-	CheckExclusive(ctx, DiscoveryV4Flag, NoDiscoverFlag)
-	CheckExclusive(ctx, DiscoveryV5Flag, NoDiscoverFlag)
-	cfg.DiscoveryV4 = ctx.Bool(DiscoveryV4Flag.Name)
-	cfg.DiscoveryV5 = ctx.Bool(DiscoveryV5Flag.Name)
+	// if we're running a light client or server, force enable the v5 peer discovery
+	// unless it is explicitly disabled with --nodiscover note that explicitly specifying
+	// --v5disc overrides --nodiscover, in which case the later only disables v4 discovery
+	forceV5Discovery := (lightClient || lightServer) && !ctx.Bool(NoDiscoverFlag.Name)
+	if ctx.IsSet(DiscoveryV5Flag.Name) {
+		cfg.DiscoveryV5 = ctx.Bool(DiscoveryV5Flag.Name)
+	} else if forceV5Discovery {
+		cfg.DiscoveryV5 = true
+	}
 
 	if netrestrict := ctx.String(NetrestrictFlag.Name); netrestrict != "" {
 		list, err := netutil.ParseNetlist(netrestrict)
@@ -1601,9 +1710,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 
 // SetBuilderConfig applies node-related command line flags to the builder config.
 func SetBuilderConfig(ctx *cli.Context, cfg *builder.Config) {
-	if ctx.IsSet(BuilderEnabled.Name) {
-		cfg.Enabled = ctx.Bool(BuilderEnabled.Name)
-	}
+	cfg.Enabled = ctx.IsSet(BuilderEnabled.Name)
 	cfg.EnableValidatorChecks = ctx.IsSet(BuilderEnableValidatorChecks.Name)
 	cfg.EnableLocalRelay = ctx.IsSet(BuilderEnableLocalRelay.Name)
 	cfg.SlotsInEpoch = ctx.Uint64(BuilderSlotsInEpoch.Name)
@@ -1620,25 +1727,11 @@ func SetBuilderConfig(ctx *cli.Context, cfg *builder.Config) {
 	cfg.BeaconEndpoints = strings.Split(ctx.String(BuilderBeaconEndpoints.Name), ",")
 	cfg.RemoteRelayEndpoint = ctx.String(BuilderRemoteRelayEndpoint.Name)
 	cfg.SecondaryRemoteRelayEndpoints = strings.Split(ctx.String(BuilderSecondaryRemoteRelayEndpoints.Name), ",")
-	// NOTE: This flag is deprecated and will be removed in the future in favor of BuilderBlockValidationBlacklistSourceFilePath
-	if ctx.IsSet(MinerBlocklistFileFlag.Name) {
-		cfg.ValidationBlocklist = ctx.String(MinerBlocklistFileFlag.Name)
-	}
-
-	// NOTE: This flag takes precedence and will overwrite value set by MinerBlocklistFileFlag
-	if ctx.IsSet(BuilderBlockValidationBlacklistSourceFilePath.Name) {
-		cfg.ValidationBlocklist = ctx.String(BuilderBlockValidationBlacklistSourceFilePath.Name)
-	}
-	cfg.ValidationUseCoinbaseDiff = ctx.Bool(BuilderBlockValidationUseBalanceDiff.Name)
-	cfg.ValidationExcludeWithdrawals = ctx.Bool(BuilderBlockValidationExcludeWithdrawals.Name)
+	cfg.ValidationBlocklist = ctx.String(BuilderBlockValidationBlacklistSourceFilePath.Name)
 	cfg.BuilderRateLimitDuration = ctx.String(BuilderRateLimitDuration.Name)
 	cfg.BuilderRateLimitMaxBurst = ctx.Int(BuilderRateLimitMaxBurst.Name)
 	cfg.BuilderSubmissionOffset = ctx.Duration(BuilderSubmissionOffset.Name)
-	cfg.DiscardRevertibleTxOnErr = ctx.Bool(BuilderDiscardRevertibleTxOnErr.Name)
 	cfg.EnableCancellations = ctx.IsSet(BuilderEnableCancellations.Name)
-	cfg.BuilderRateLimitResubmitInterval = ctx.String(BuilderBlockResubmitInterval.Name)
-
-	cfg.BlockProcessorURL = ctx.String(BuilderBlockProcessorURL.Name)
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
@@ -1690,13 +1783,6 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 		log.Info(fmt.Sprintf("Using %s as db engine", dbEngine))
 		cfg.DBEngine = dbEngine
 	}
-	// deprecation notice for log debug flags (TODO: find a more appropriate place to put these?)
-	if ctx.IsSet(LogBacktraceAtFlag.Name) {
-		log.Warn("log.backtrace flag is deprecated")
-	}
-	if ctx.IsSet(LogDebugFlag.Name) {
-		log.Warn("log.debug flag is deprecated")
-	}
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -1725,16 +1811,21 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = ctx.String(DataDirFlag.Name)
 	case ctx.Bool(DeveloperFlag.Name):
 		cfg.DataDir = "" // unless explicitly requested, use memory databases
+	case ctx.Bool(RinkebyFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "rinkeby")
 	case ctx.Bool(GoerliFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	case ctx.Bool(SepoliaFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
-	case ctx.Bool(HoleskyFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "holesky")
 	}
 }
 
-func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
+func setGPO(ctx *cli.Context, cfg *gasprice.Config, light bool) {
+	// If we are running the light client, apply another group
+	// settings for gas oracle.
+	if light {
+		*cfg = ethconfig.LightClientGPO
+	}
 	if ctx.IsSet(GpoBlocksFlag.Name) {
 		cfg.Blocks = ctx.Int(GpoBlocksFlag.Name)
 	}
@@ -1749,7 +1840,7 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 }
 
-func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
+func setTxPool(ctx *cli.Context, cfg *txpool.Config) {
 	if ctx.IsSet(TxPoolLocalsFlag.Name) {
 		locals := strings.Split(ctx.String(TxPoolLocalsFlag.Name), ",")
 		for _, account := range locals {
@@ -1765,6 +1856,9 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 	}
 	if ctx.IsSet(TxPoolJournalFlag.Name) {
 		cfg.Journal = ctx.String(TxPoolJournalFlag.Name)
+	}
+	if ctx.IsSet(TxPoolJournalRemotesFlag.Name) {
+		cfg.JournalRemote = ctx.Bool(TxPoolJournalRemotesFlag.Name)
 	}
 	if ctx.IsSet(TxPoolRejournalFlag.Name) {
 		cfg.Rejournal = ctx.Duration(TxPoolRejournalFlag.Name)
@@ -1795,7 +1889,38 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 	}
 }
 
+func setEthash(ctx *cli.Context, cfg *ethconfig.Config) {
+	if ctx.IsSet(EthashCacheDirFlag.Name) {
+		cfg.Ethash.CacheDir = ctx.String(EthashCacheDirFlag.Name)
+	}
+	if ctx.IsSet(EthashDatasetDirFlag.Name) {
+		cfg.Ethash.DatasetDir = ctx.String(EthashDatasetDirFlag.Name)
+	}
+	if ctx.IsSet(EthashCachesInMemoryFlag.Name) {
+		cfg.Ethash.CachesInMem = ctx.Int(EthashCachesInMemoryFlag.Name)
+	}
+	if ctx.IsSet(EthashCachesOnDiskFlag.Name) {
+		cfg.Ethash.CachesOnDisk = ctx.Int(EthashCachesOnDiskFlag.Name)
+	}
+	if ctx.IsSet(EthashCachesLockMmapFlag.Name) {
+		cfg.Ethash.CachesLockMmap = ctx.Bool(EthashCachesLockMmapFlag.Name)
+	}
+	if ctx.IsSet(EthashDatasetsInMemoryFlag.Name) {
+		cfg.Ethash.DatasetsInMem = ctx.Int(EthashDatasetsInMemoryFlag.Name)
+	}
+	if ctx.IsSet(EthashDatasetsOnDiskFlag.Name) {
+		cfg.Ethash.DatasetsOnDisk = ctx.Int(EthashDatasetsOnDiskFlag.Name)
+	}
+	if ctx.IsSet(EthashDatasetsLockMmapFlag.Name) {
+		cfg.Ethash.DatasetsLockMmap = ctx.Bool(EthashDatasetsLockMmapFlag.Name)
+	}
+}
+
 func setMiner(ctx *cli.Context, cfg *miner.Config) {
+	if ctx.IsSet(MinerNotifyFlag.Name) {
+		cfg.Notify = strings.Split(ctx.String(MinerNotifyFlag.Name), ",")
+	}
+	cfg.NotifyFull = ctx.Bool(MinerNotifyFullFlag.Name)
 	if ctx.IsSet(MinerExtraDataFlag.Name) {
 		cfg.ExtraData = []byte(ctx.String(MinerExtraDataFlag.Name))
 	}
@@ -1805,32 +1930,28 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.IsSet(MinerGasPriceFlag.Name) {
 		cfg.GasPrice = flags.GlobalBig(ctx, MinerGasPriceFlag.Name)
 	}
-	// NOTE: This flag is deprecated and will be removed in the future.
 	if ctx.IsSet(MinerAlgoTypeFlag.Name) {
-		algoType, err := miner.AlgoTypeFlagToEnum(ctx.String(BuilderAlgoTypeFlag.Name))
+		algoType, err := miner.AlgoTypeFlagToEnum(ctx.String(MinerAlgoTypeFlag.Name))
 		if err != nil {
-			Fatalf("Invalid algo in --miner.algotype: %s", ctx.String(BuilderAlgoTypeFlag.Name))
-		}
-		cfg.AlgoType = algoType
-	}
-	// NOTE: BuilderAlgoTypeFlag takes precedence and will overwrite value set by MinerAlgoTypeFlag.
-	if ctx.IsSet(BuilderAlgoTypeFlag.Name) {
-		algoType, err := miner.AlgoTypeFlagToEnum(ctx.String(BuilderAlgoTypeFlag.Name))
-		if err != nil {
-			Fatalf("Invalid algo in --builder.algotype: %s", ctx.String(BuilderAlgoTypeFlag.Name))
+			Fatalf("Invalid algo in --miner.algotype: %s", ctx.String(MinerAlgoTypeFlag.Name))
 		}
 		cfg.AlgoType = algoType
 	}
 	if ctx.IsSet(MinerRecommitIntervalFlag.Name) {
 		cfg.Recommit = ctx.Duration(MinerRecommitIntervalFlag.Name)
 	}
+	if ctx.IsSet(MinerNoVerifyFlag.Name) {
+		cfg.Noverify = ctx.Bool(MinerNoVerifyFlag.Name)
+	}
 	if ctx.IsSet(MinerNewPayloadTimeout.Name) {
 		cfg.NewPayloadTimeout = ctx.Duration(MinerNewPayloadTimeout.Name)
+	}
+	if ctx.IsSet(RollupComputePendingBlock.Name) {
+		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
 	}
 
 	cfg.MaxMergedBundles = ctx.Int(MinerMaxMergedBundlesFlag.Name)
 
-	// NOTE: This flag is deprecated and will be removed in the future in favor of BuilderBlockValidationBlacklistSourceFilePath
 	if ctx.IsSet(MinerBlocklistFileFlag.Name) {
 		bytes, err := os.ReadFile(ctx.String(MinerBlocklistFileFlag.Name))
 		if err != nil {
@@ -1842,20 +1963,7 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 		}
 	}
 
-	// NOTE: This flag takes precedence and will overwrite value set by MinerBlocklistFileFlag
-	if ctx.IsSet(BuilderBlockValidationBlacklistSourceFilePath.Name) {
-		bytes, err := os.ReadFile(ctx.String(BuilderBlockValidationBlacklistSourceFilePath.Name))
-		if err != nil {
-			Fatalf("Failed to read blocklist file: %s", err)
-		}
-
-		if err := json.Unmarshal(bytes, &cfg.Blocklist); err != nil {
-			Fatalf("Failed to parse blocklist: %s", err)
-		}
-	}
-
-	cfg.DiscardRevertibleTxOnErr = ctx.Bool(BuilderDiscardRevertibleTxOnErr.Name)
-	cfg.PriceCutoffPercent = ctx.Int(BuilderPriceCutoffPercentFlag.Name)
+	cfg.PriceCutoffPercent = ctx.Int(MinerPriceCutoffPercentFlag.Name)
 }
 
 func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
@@ -1930,13 +2038,20 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
-	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag, HoleskyFlag)
+	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RinkebyFlag, GoerliFlag, SepoliaFlag)
+	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
-
-	// Set configurations from CLI flags
+	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
+		ctx.Set(TxLookupLimitFlag.Name, "0")
+		log.Warn("Disable transaction unindexing for archive node")
+	}
+	if ctx.IsSet(LightServeFlag.Name) && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
+		log.Warn("LES server cannot serve old transaction status and cannot connect below les/4 protocol version if transaction lookup index is limited")
+	}
 	setEtherbase(ctx, cfg)
-	setGPO(ctx, &cfg.GPO)
+	setGPO(ctx, &cfg.GPO, ctx.String(SyncModeFlag.Name) == "light")
 	setTxPool(ctx, &cfg.TxPool)
+	setEthash(ctx, cfg)
 	setMiner(ctx, &cfg.Miner)
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
@@ -1961,9 +2076,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 	godebug.SetGCPercent(int(gogc))
 
-	if ctx.IsSet(SyncTargetFlag.Name) {
-		cfg.SyncMode = downloader.FullSync // dev sync target forces full sync
-	} else if ctx.IsSet(SyncModeFlag.Name) {
+	if ctx.IsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *flags.GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
 	if ctx.IsSet(NetworkIdFlag.Name) {
@@ -1992,30 +2105,17 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.Preimages = true
 		log.Info("Enabling recording of key preimages since archive mode is used")
 	}
-	if ctx.IsSet(StateHistoryFlag.Name) {
-		cfg.StateHistory = ctx.Uint64(StateHistoryFlag.Name)
-	}
-	if ctx.IsSet(StateSchemeFlag.Name) {
-		cfg.StateScheme = ctx.String(StateSchemeFlag.Name)
-	}
-	// Parse transaction history flag, if user is still using legacy config
-	// file with 'TxLookupLimit' configured, copy the value to 'TransactionHistory'.
-	if cfg.TransactionHistory == ethconfig.Defaults.TransactionHistory && cfg.TxLookupLimit != ethconfig.Defaults.TxLookupLimit {
-		log.Warn("The config option 'TxLookupLimit' is deprecated and will be removed, please use 'TransactionHistory'")
-		cfg.TransactionHistory = cfg.TxLookupLimit
-	}
-	if ctx.IsSet(TransactionHistoryFlag.Name) {
-		cfg.TransactionHistory = ctx.Uint64(TransactionHistoryFlag.Name)
-	} else if ctx.IsSet(TxLookupLimitFlag.Name) {
-		log.Warn("The flag --txlookuplimit is deprecated and will be removed, please use --history.transactions")
-		cfg.TransactionHistory = ctx.Uint64(TxLookupLimitFlag.Name)
-	}
-	if ctx.String(GCModeFlag.Name) == "archive" && cfg.TransactionHistory != 0 {
-		cfg.TransactionHistory = 0
-		log.Warn("Disabled transaction unindexing for archive node")
+	if ctx.IsSet(TxLookupLimitFlag.Name) {
+		cfg.TxLookupLimit = ctx.Uint64(TxLookupLimitFlag.Name)
 	}
 	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheTrieFlag.Name) {
 		cfg.TrieCleanCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheTrieFlag.Name) / 100
+	}
+	if ctx.IsSet(CacheTrieJournalFlag.Name) {
+		cfg.TrieCleanCacheJournal = ctx.String(CacheTrieJournalFlag.Name)
+	}
+	if ctx.IsSet(CacheTrieRejournalFlag.Name) {
+		cfg.TrieCleanCacheRejournal = ctx.Duration(CacheTrieRejournalFlag.Name)
 	}
 	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheGCFlag.Name) {
 		cfg.TrieDirtyCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheGCFlag.Name) / 100
@@ -2026,16 +2126,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.IsSet(CacheLogSizeFlag.Name) {
 		cfg.FilterLogCacheSize = ctx.Int(CacheLogSizeFlag.Name)
 	}
-	if !ctx.Bool(SnapshotFlag.Name) || cfg.SnapshotCache == 0 {
+	if !ctx.Bool(SnapshotFlag.Name) {
 		// If snap-sync is requested, this flag is also required
 		if cfg.SyncMode == downloader.SnapSync {
-			if !ctx.Bool(SnapshotFlag.Name) {
-				log.Warn("Snap sync requested, enabling --snapshot")
-			}
-			if cfg.SnapshotCache == 0 {
-				log.Warn("Snap sync requested, resetting --cache.snapshot")
-				cfg.SnapshotCache = ctx.Int(CacheFlag.Name) * CacheSnapshotFlag.Value / 100
-			}
+			log.Info("Snap sync requested, enabling --snapshot")
 		} else {
 			cfg.TrieCleanCache += cfg.SnapshotCache
 			cfg.SnapshotCache = 0 // Disabled
@@ -2073,6 +2167,17 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
 	}
+	// Only configure sequencer http flag if we're running in verifier mode i.e. --mine is disabled.
+	if ctx.IsSet(RollupSequencerHTTPFlag.Name) && !ctx.IsSet(MiningEnabledFlag.Name) {
+		cfg.RollupSequencerHTTP = ctx.String(RollupSequencerHTTPFlag.Name)
+	}
+	if ctx.IsSet(RollupHistoricalRPCFlag.Name) {
+		cfg.RollupHistoricalRPC = ctx.String(RollupHistoricalRPCFlag.Name)
+	}
+	if ctx.IsSet(RollupHistoricalRPCTimeoutFlag.Name) {
+		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
+	}
+	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
@@ -2081,18 +2186,28 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		}
 		cfg.Genesis = core.DefaultGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
-	case ctx.Bool(HoleskyFlag.Name):
-		if !ctx.IsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 17000
-		}
-		cfg.Genesis = core.DefaultHoleskyGenesisBlock()
-		SetDNSDiscoveryDefaults(cfg, params.HoleskyGenesisHash)
 	case ctx.Bool(SepoliaFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 11155111
 		}
 		cfg.Genesis = core.DefaultSepoliaGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.SepoliaGenesisHash)
+	case ctx.Bool(RinkebyFlag.Name):
+		log.Warn("")
+		log.Warn("--------------------------------------------------------------------------------")
+		log.Warn("Please note, Rinkeby has been deprecated. It will still work for the time being,")
+		log.Warn("but there will be no further hard-forks shipped for it.")
+		log.Warn("The network will be permanently halted in Q2/Q3 of 2023.")
+		log.Warn("For the most future proof testnet, choose Sepolia as")
+		log.Warn("your replacement environment (--sepolia instead of --rinkeby).")
+		log.Warn("--------------------------------------------------------------------------------")
+		log.Warn("")
+
+		if !ctx.IsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 4
+		}
+		cfg.Genesis = core.DefaultRinkebyGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.RinkebyGenesisHash)
 	case ctx.Bool(GoerliFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 5
@@ -2148,26 +2263,19 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		log.Info("Using developer account", "address", developer.Address)
 
 		// Create a new developer genesis block or reuse existing one
-		cfg.Genesis = core.DeveloperGenesisBlock(ctx.Uint64(DeveloperGasLimitFlag.Name), &developer.Address)
+		cfg.Genesis = core.DeveloperGenesisBlock(uint64(ctx.Int(DeveloperPeriodFlag.Name)), ctx.Uint64(DeveloperGasLimitFlag.Name), developer.Address)
 		if ctx.IsSet(DataDirFlag.Name) {
-			chaindb := tryMakeReadOnlyDatabase(ctx, stack)
+			// If datadir doesn't exist we need to open db in write-mode
+			// so leveldb can create files.
+			readonly := true
+			if !common.FileExist(stack.ResolvePath("chaindata")) {
+				readonly = false
+			}
+			// Check if we have an already initialized chain and fall back to
+			// that if so. Otherwise we need to generate a new genesis spec.
+			chaindb := MakeChainDatabase(ctx, stack, readonly)
 			if rawdb.ReadCanonicalHash(chaindb, 0) != (common.Hash{}) {
 				cfg.Genesis = nil // fallback to db content
-
-				//validate genesis has PoS enabled in block 0
-				genesis, err := core.ReadGenesis(chaindb)
-				if err != nil {
-					Fatalf("Could not read genesis from database: %v", err)
-				}
-				if !genesis.Config.TerminalTotalDifficultyPassed {
-					Fatalf("Bad developer-mode genesis configuration: terminalTotalDifficultyPassed must be true in developer mode")
-				}
-				if genesis.Config.TerminalTotalDifficulty == nil {
-					Fatalf("Bad developer-mode genesis configuration: terminalTotalDifficulty must be specified.")
-				}
-				if genesis.Difficulty.Cmp(genesis.Config.TerminalTotalDifficulty) != 1 {
-					Fatalf("Bad developer-mode genesis configuration: genesis block difficulty must be > terminalTotalDifficulty")
-				}
 			}
 			chaindb.Close()
 		}
@@ -2179,14 +2287,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
 		}
 	}
-	// Set any dangling config values
-	if ctx.String(CryptoKZGFlag.Name) != "gokzg" && ctx.String(CryptoKZGFlag.Name) != "ckzg" {
-		Fatalf("--%s flag must be 'gokzg' or 'ckzg'", CryptoKZGFlag.Name)
-	}
-	log.Info("Initializing the KZG library", "backend", ctx.String(CryptoKZGFlag.Name))
-	if err := kzg4844.UseCKZG(ctx.String(CryptoKZGFlag.Name) == "ckzg"); err != nil {
-		Fatalf("Failed to set KZG library implementation to %s: %v", ctx.String(CryptoKZGFlag.Name), err)
-	}
 }
 
 // SetDNSDiscoveryDefaults configures DNS discovery with the given URL if
@@ -2196,6 +2296,9 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 		return // already set through flags/config
 	}
 	protocol := "all"
+	if cfg.SyncMode == downloader.LightSync {
+		protocol = "les"
+	}
 	if url := params.KnownDNSNetwork(genesis, protocol); url != "" {
 		cfg.EthDiscoveryURLs = []string{url}
 		cfg.SnapDiscoveryURLs = cfg.EthDiscoveryURLs
@@ -2203,11 +2306,32 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-// The second return value is the full node instance.
+// The second return value is the full node instance, which may be nil if the
+// node is running as a light client.
 func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.Config) (ethapi.Backend, *eth.Ethereum) {
+	if cfg.SyncMode == downloader.LightSync {
+		backend, err := les.New(stack, cfg)
+		if err != nil {
+			Fatalf("Failed to register the Ethereum service: %v", err)
+		}
+		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
+		if err := lescatalyst.Register(stack, backend); err != nil {
+			Fatalf("Failed to register the Engine API service: %v", err)
+		}
+		return backend.ApiBackend, nil
+	}
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
+	}
+	if cfg.LightServ > 0 {
+		_, err := les.NewLesServer(stack, backend, cfg)
+		if err != nil {
+			Fatalf("Failed to create the LES server: %v", err)
+		}
+	}
+	if err := ethcatalyst.Register(stack, backend); err != nil {
+		Fatalf("Failed to register the Engine API service: %v", err)
 	}
 
 	if bpCfg.Enabled {
@@ -2237,20 +2361,33 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, filterSyst
 
 // RegisterFilterAPI adds the eth log filtering RPC API to the node.
 func RegisterFilterAPI(stack *node.Node, backend ethapi.Backend, ethcfg *ethconfig.Config) *filters.FilterSystem {
+	isLightClient := ethcfg.SyncMode == downloader.LightSync
 	filterSystem := filters.NewFilterSystem(backend, filters.Config{
 		LogCacheSize: ethcfg.FilterLogCacheSize,
 	})
 	stack.RegisterAPIs([]rpc.API{{
 		Namespace: "eth",
-		Service:   filters.NewFilterAPI(filterSystem, false),
+		Service:   filters.NewFilterAPI(filterSystem, isLightClient),
 	}})
 	return filterSystem
 }
 
 // RegisterFullSyncTester adds the full-sync tester service into node.
-func RegisterFullSyncTester(stack *node.Node, eth *eth.Ethereum, target common.Hash) {
-	catalyst.RegisterFullSyncTester(stack, eth, target)
-	log.Info("Registered full-sync tester", "hash", target)
+func RegisterFullSyncTester(stack *node.Node, eth *eth.Ethereum, path string) {
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		Fatalf("Failed to read block file: %v", err)
+	}
+	rlpBlob, err := hexutil.Decode(string(bytes.TrimRight(blob, "\r\n")))
+	if err != nil {
+		Fatalf("Failed to decode block blob: %v", err)
+	}
+	var block types.Block
+	if err := rlp.DecodeBytes(rlpBlob, &block); err != nil {
+		Fatalf("Failed to decode block: %v", err)
+	}
+	ethcatalyst.RegisterFullSyncTester(stack, eth, &block)
+	log.Info("Registered full-sync tester", "number", block.NumberU64(), "hash", block.Hash())
 }
 
 func SetupMetrics(ctx *cli.Context) {
@@ -2305,7 +2442,7 @@ func SetupMetrics(ctx *cli.Context) {
 		}
 
 		if ctx.IsSet(MetricsHTTPFlag.Name) {
-			address := net.JoinHostPort(ctx.String(MetricsHTTPFlag.Name), fmt.Sprintf("%d", ctx.Int(MetricsPortFlag.Name)))
+			address := fmt.Sprintf("%s:%d", ctx.String(MetricsHTTPFlag.Name), ctx.Int(MetricsPortFlag.Name))
 			log.Info("Enabling stand-alone metrics HTTP endpoint", "address", address)
 			exp.Setup(address)
 		} else if ctx.IsSet(MetricsPortFlag.Name) {
@@ -2331,11 +2468,12 @@ func SplitTagsFlag(tagsFlag string) map[string]string {
 	return tagsMap
 }
 
-// MakeChainDatabase opens a database using the flags passed to the client and will hard crash if it fails.
+// MakeChainDatabase open an LevelDB using the flags passed to the client and will hard crash if it fails.
 func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.Database {
 	var (
 		cache   = ctx.Int(CacheFlag.Name) * ctx.Int(CacheDatabaseFlag.Name) / 100
 		handles = MakeDatabaseHandles(ctx.Int(FDLimitFlag.Name))
+
 		err     error
 		chainDb ethdb.Database
 	)
@@ -2356,18 +2494,6 @@ func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.
 		Fatalf("Could not open database: %v", err)
 	}
 	return chainDb
-}
-
-// tryMakeReadOnlyDatabase try to open the chain database in read-only mode,
-// or fallback to write mode if the database is not initialized.
-func tryMakeReadOnlyDatabase(ctx *cli.Context, stack *node.Node) ethdb.Database {
-	// If the database doesn't exist we need to open it in write-mode to allow
-	// the engine to create files.
-	readonly := true
-	if rawdb.PreexistingDatabase(stack.ResolvePath("chaindata")) == "" {
-		readonly = false
-	}
-	return MakeChainDatabase(ctx, stack, readonly)
 }
 
 func IsNetworkPreset(ctx *cli.Context) bool {
@@ -2409,10 +2535,10 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
 		genesis = core.DefaultGenesisBlock()
-	case ctx.Bool(HoleskyFlag.Name):
-		genesis = core.DefaultHoleskyGenesisBlock()
 	case ctx.Bool(SepoliaFlag.Name):
 		genesis = core.DefaultSepoliaGenesisBlock()
+	case ctx.Bool(RinkebyFlag.Name):
+		genesis = core.DefaultRinkebyGenesisBlock()
 	case ctx.Bool(GoerliFlag.Name):
 		genesis = core.DefaultGoerliGenesisBlock()
 	case ctx.Bool(DeveloperFlag.Name):
@@ -2427,20 +2553,17 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		gspec   = MakeGenesis(ctx)
 		chainDb = MakeChainDatabase(ctx, stack, readonly)
 	)
-	config, err := core.LoadChainConfig(chainDb, gspec)
+	cliqueConfig, err := core.LoadCliqueConfig(chainDb, gspec)
 	if err != nil {
 		Fatalf("%v", err)
 	}
-	engine, err := ethconfig.CreateConsensusEngine(config, chainDb)
-	if err != nil {
-		Fatalf("%v", err)
+	ethashConfig := ethconfig.Defaults.Ethash
+	if ctx.Bool(FakePoWFlag.Name) {
+		ethashConfig.PowMode = ethash.ModeFake
 	}
+	engine := ethconfig.CreateConsensusEngine(stack, &ethashConfig, cliqueConfig, nil, false, chainDb)
 	if gcmode := ctx.String(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
-	}
-	scheme, err := rawdb.ParseStateScheme(ctx.String(StateSchemeFlag.Name), chainDb)
-	if err != nil {
-		Fatalf("%v", err)
 	}
 	cache := &core.CacheConfig{
 		TrieCleanLimit:      ethconfig.Defaults.TrieCleanCache,
@@ -2450,8 +2573,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout,
 		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
 		Preimages:           ctx.Bool(CachePreimagesFlag.Name),
-		StateScheme:         scheme,
-		StateHistory:        ctx.Uint64(StateHistoryFlag.Name),
 	}
 	if cache.TrieDirtyDisabled && !cache.Preimages {
 		cache.Preimages = true
@@ -2495,29 +2616,4 @@ func MakeConsolePreloads(ctx *cli.Context) []string {
 		preloads = append(preloads, strings.TrimSpace(file))
 	}
 	return preloads
-}
-
-// MakeTrieDatabase constructs a trie database based on the configured scheme.
-func MakeTrieDatabase(ctx *cli.Context, disk ethdb.Database, preimage bool, readOnly bool, isVerkle bool) *triedb.Database {
-	config := &triedb.Config{
-		Preimages: preimage,
-		IsVerkle:  isVerkle,
-	}
-	scheme, err := rawdb.ParseStateScheme(ctx.String(StateSchemeFlag.Name), disk)
-	if err != nil {
-		Fatalf("%v", err)
-	}
-	if scheme == rawdb.HashScheme {
-		// Read-only mode is not implemented in hash mode,
-		// ignore the parameter silently. TODO(rjl493456442)
-		// please config it if read mode is implemented.
-		config.HashDB = hashdb.Defaults
-		return triedb.NewDatabase(disk, config)
-	}
-	if readOnly {
-		config.PathDB = pathdb.ReadOnly
-	} else {
-		config.PathDB = pathdb.Defaults
-	}
-	return triedb.NewDatabase(disk, config)
 }

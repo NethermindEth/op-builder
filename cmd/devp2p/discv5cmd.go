@@ -17,7 +17,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -81,7 +80,7 @@ var (
 
 func discv5Ping(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
-	disc, _ := startV5(ctx)
+	disc := startV5(ctx)
 	defer disc.Close()
 
 	fmt.Println(disc.Ping(n))
@@ -90,7 +89,7 @@ func discv5Ping(ctx *cli.Context) error {
 
 func discv5Resolve(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
-	disc, _ := startV5(ctx)
+	disc := startV5(ctx)
 	defer disc.Close()
 
 	fmt.Println(disc.Resolve(n))
@@ -99,21 +98,17 @@ func discv5Resolve(ctx *cli.Context) error {
 
 func discv5Crawl(ctx *cli.Context) error {
 	if ctx.NArg() < 1 {
-		return errors.New("need nodes file as argument")
+		return fmt.Errorf("need nodes file as argument")
 	}
 	nodesFile := ctx.Args().First()
-	inputSet := make(nodeSet)
+	var inputSet nodeSet
 	if common.FileExist(nodesFile) {
 		inputSet = loadNodesJSON(nodesFile)
 	}
 
-	disc, config := startV5(ctx)
+	disc := startV5(ctx)
 	defer disc.Close()
-
-	c, err := newCrawler(inputSet, config.Bootnodes, disc, disc.RandomNodes())
-	if err != nil {
-		return err
-	}
+	c := newCrawler(inputSet, disc, disc.RandomNodes())
 	c.revalidateInterval = 10 * time.Minute
 	output := c.run(ctx.Duration(crawlTimeoutFlag.Name), ctx.Int(crawlParallelismFlag.Name))
 	writeNodesJSON(nodesFile, output)
@@ -131,7 +126,7 @@ func discv5Test(ctx *cli.Context) error {
 }
 
 func discv5Listen(ctx *cli.Context) error {
-	disc, _ := startV5(ctx)
+	disc := startV5(ctx)
 	defer disc.Close()
 
 	fmt.Println(disc.Self())
@@ -139,12 +134,12 @@ func discv5Listen(ctx *cli.Context) error {
 }
 
 // startV5 starts an ephemeral discovery v5 node.
-func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
+func startV5(ctx *cli.Context) *discover.UDPv5 {
 	ln, config := makeDiscoveryConfig(ctx)
 	socket := listen(ctx, ln)
 	disc, err := discover.ListenV5(socket, ln, config)
 	if err != nil {
 		exit(err)
 	}
-	return disc, config
+	return disc
 }

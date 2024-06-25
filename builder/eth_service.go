@@ -26,14 +26,13 @@ type testEthereumService struct {
 	testExecutableData *engine.ExecutableData
 	testBlock          *types.Block
 	testBlockValue     *big.Int
-	testBlobSidecar    []*types.BlobTxSidecar
 	testBundlesMerged  []types.SimulatedBundle
 	testAllBundles     []types.SimulatedBundle
 	testUsedSbundles   []types.UsedSBundle
 }
 
 func (t *testEthereumService) BuildBlock(attrs *types.BuilderPayloadAttributes, sealedBlockCallback miner.BlockHookFn) error {
-	sealedBlockCallback(t.testBlock, t.testBlockValue, t.testBlobSidecar, time.Now(), t.testBundlesMerged, t.testAllBundles, t.testUsedSbundles)
+	sealedBlockCallback(t.testBlock, t.testBlockValue, time.Now(), t.testBundlesMerged, t.testAllBundles, t.testUsedSbundles)
 	return nil
 }
 
@@ -59,11 +58,13 @@ func (s *EthereumService) BuildBlock(attrs *types.BuilderPayloadAttributes, seal
 		Parent:       attrs.HeadHash,
 		Timestamp:    uint64(attrs.Timestamp),
 		FeeRecipient: attrs.SuggestedFeeRecipient,
-		GasLimit:     attrs.GasLimit,
+		GasLimit:     &attrs.GasLimit,
 		Random:       attrs.Random,
 		Withdrawals:  attrs.Withdrawals,
-		BeaconRoot:   attrs.ParentBeaconBlockRoot,
 		BlockHook:    sealedBlockCallback,
+
+		NoTxPool:     false,
+		Transactions: attrs.Transactions,
 	}
 
 	payload, err := s.eth.Miner().BuildPayload(args)

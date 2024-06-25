@@ -85,7 +85,12 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 	if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
 		return fmt.Errorf("failed to parse testcase input: %v", err)
 	}
-	signer := types.MakeSigner(test.Genesis.Config, new(big.Int).SetUint64(uint64(test.Context.Number)), uint64(test.Context.Time))
+	signer := types.MakeSigner(test.Genesis.Config, new(big.Int).SetUint64(uint64(test.Context.Number)))
+	origin, _ := signer.Sender(tx)
+	txContext := vm.TxContext{
+		Origin:   origin,
+		GasPrice: tx.GasPrice(),
+	}
 	context := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -95,19 +100,19 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 		Difficulty:  (*big.Int)(test.Context.Difficulty),
 		GasLimit:    uint64(test.Context.GasLimit),
 	}
-	state := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
-	defer state.Close()
+	_, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false)
 
 	// Create the tracer, the EVM environment and run it
 	tracer, err := tracers.DefaultDirectory.New(tracerName, new(tracers.Context), test.TracerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create call tracer: %v", err)
 	}
-	msg, err := core.TransactionToMessage(tx, signer, context.BaseFee)
+	evm := vm.NewEVM(context, txContext, statedb, test.Genesis.Config, vm.Config{Debug: true, Tracer: tracer})
+
+	msg, err := core.TransactionToMessage(tx, signer, nil)
 	if err != nil {
 		return fmt.Errorf("failed to prepare transaction for tracing: %v", err)
 	}
-	evm := vm.NewEVM(context, core.NewEVMTxContext(msg), state.StateDB, test.Genesis.Config, vm.Config{Tracer: tracer})
 	st := core.NewStateTransition(evm, msg, new(core.GasPool).AddGas(tx.Gas()))
 
 	if _, err = st.TransitionDb(); err != nil {
@@ -119,8 +124,8 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 	if err != nil {
 		return fmt.Errorf("failed to retrieve trace result: %v", err)
 	}
-	ret := make([]flatCallTrace, 0)
-	if err := json.Unmarshal(res, &ret); err != nil {
+	ret := new([]flatCallTrace)
+	if err := json.Unmarshal(res, ret); err != nil {
 		return fmt.Errorf("failed to unmarshal trace result: %v", err)
 	}
 	if !jsonEqualFlat(ret, test.Result) {

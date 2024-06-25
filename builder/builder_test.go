@@ -5,13 +5,12 @@ import (
 	"testing"
 	"time"
 
-	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/flashbotsextra"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -22,13 +21,6 @@ import (
 )
 
 func TestOnPayloadAttributes(t *testing.T) {
-	const (
-		validatorDesiredGasLimit = 30_000_000
-		payloadAttributeGasLimit = 0
-		parentBlockGasLimit      = 29_000_000
-	)
-	expectedGasLimit := core.CalcGasLimit(parentBlockGasLimit, validatorDesiredGasLimit)
-
 	vsk, err := bls.SecretKeyFromBytes(hexutil.MustDecode("0x370bb8c1a6e62b2882f6ec76762a67b39609002076b95aae5b023997cf9b2dc9"))
 	require.NoError(t, err)
 	validator := &ValidatorPrivateData{
@@ -46,7 +38,7 @@ func TestOnPayloadAttributes(t *testing.T) {
 		gvsVd: ValidatorData{
 			Pubkey:       PubkeyHex(testBeacon.validator.Pk.String()),
 			FeeRecipient: feeRecipient,
-			GasLimit:     validatorDesiredGasLimit,
+			GasLimit:     10,
 		},
 	}
 
@@ -62,25 +54,25 @@ func TestOnPayloadAttributes(t *testing.T) {
 		ReceiptsRoot: common.Hash{0x08, 0x20},
 		LogsBloom:    types.Bloom{}.Bytes(),
 		Number:       uint64(10),
-		GasLimit:     expectedGasLimit,
+		GasLimit:     uint64(50),
 		GasUsed:      uint64(100),
 		Timestamp:    uint64(105),
 		ExtraData:    hexutil.MustDecode("0x0042fafc"),
 
 		BaseFeePerGas: big.NewInt(16),
 
-		BlockHash:    common.HexToHash("0x68e516c8827b589fcb749a9e672aa16b9643437459508c467f66a9ed1de66a6c"),
+		BlockHash:    common.HexToHash("0xca4147f0d4150183ece9155068f34ee3c375448814e4ca557d482b1d40ee5407"),
 		Transactions: [][]byte{},
 	}
 
-	testBlock, err := engine.ExecutableDataToBlock(*testExecutableData, nil, nil)
+	testBlock, err := engine.ExecutableDataToBlock(*testExecutableData)
 	require.NoError(t, err)
 
 	testPayloadAttributes := &types.BuilderPayloadAttributes{
 		Timestamp:             hexutil.Uint64(104),
 		Random:                common.Hash{0x05, 0x10},
 		SuggestedFeeRecipient: common.Address{0x04, 0x10},
-		GasLimit:              uint64(payloadAttributeGasLimit),
+		GasLimit:              uint64(21),
 		Slot:                  uint64(25),
 	}
 
@@ -96,7 +88,6 @@ func TestOnPayloadAttributes(t *testing.T) {
 		validator:                   nil,
 		beaconClient:                &testBeacon,
 		limiter:                     nil,
-		blockConsumer:               flashbotsextra.NilDbService{},
 	}
 	builder, err := NewBuilder(builderArgs)
 	require.NoError(t, err)
@@ -108,23 +99,21 @@ func TestOnPayloadAttributes(t *testing.T) {
 	time.Sleep(time.Second * 3)
 
 	require.NotNil(t, testRelay.submittedMsg)
-
 	expectedProposerPubkey, err := utils.HexToPubkey(testBeacon.validator.Pk.String())
 	require.NoError(t, err)
 
-	expectedMessage := builderApiV1.BidTrace{
+	expectedMessage := apiv1.BidTrace{
 		Slot:                 uint64(25),
 		ParentHash:           phase0.Hash32{0x02, 0x03},
 		BuilderPubkey:        builder.builderPublicKey,
 		ProposerPubkey:       expectedProposerPubkey,
 		ProposerFeeRecipient: feeRecipient,
-		GasLimit:             expectedGasLimit,
+		GasLimit:             uint64(50),
 		GasUsed:              uint64(100),
 		Value:                &uint256.Int{0x0a},
 	}
-	copy(expectedMessage.BlockHash[:], hexutil.MustDecode("0x68e516c8827b589fcb749a9e672aa16b9643437459508c467f66a9ed1de66a6c")[:])
-	require.NotNil(t, testRelay.submittedMsg.Bellatrix)
-	require.Equal(t, expectedMessage, *testRelay.submittedMsg.Bellatrix.Message)
+	copy(expectedMessage.BlockHash[:], hexutil.MustDecode("0xca4147f0d4150183ece9155068f34ee3c375448814e4ca557d482b1d40ee5407")[:])
+	require.Equal(t, expectedMessage, *testRelay.submittedMsg.Message)
 
 	expectedExecutionPayload := bellatrix.ExecutionPayload{
 		ParentHash:    [32]byte(testExecutableData.ParentHash),
@@ -143,12 +132,12 @@ func TestOnPayloadAttributes(t *testing.T) {
 		Transactions:  []bellatrix.Transaction{},
 	}
 
-	require.Equal(t, expectedExecutionPayload, *testRelay.submittedMsg.Bellatrix.ExecutionPayload)
+	require.Equal(t, expectedExecutionPayload, *testRelay.submittedMsg.ExecutionPayload)
 
-	expectedSignature, err := utils.HexToSignature("0x8d1dc346d469b0678ee72baa559315433af0966d2d05dad0de9ce60ff5e4954d4e28a85643496df279494d105bc4a771034fefcdd83d71df5f1b81c9369942b20d6d574b544a93588f6182ba8b09585eb1cf3e1b6551ccbd9e76a4db8eb579fe")
+	expectedSignature, err := utils.HexToSignature("0xad09f171b1da05636acfc86778c319af69e39c79515d44bdfed616ba2ef677ffd4d155d87b3363c6bae651ce1e92786216b75f1ac91dd65f3b1d1902bf8485e742170732dd82ffdf4decb0151eeb7926dd053efa9794b2ebed1a203e62bb13e9")
 
 	require.NoError(t, err)
-	require.Equal(t, expectedSignature, testRelay.submittedMsg.Bellatrix.Signature)
+	require.Equal(t, expectedSignature, testRelay.submittedMsg.Signature)
 
 	require.Equal(t, uint64(25), testRelay.requestedSlot)
 
@@ -161,8 +150,8 @@ func TestOnPayloadAttributes(t *testing.T) {
 
 	// Change the hash, expect to get the block
 	testExecutableData.ExtraData = hexutil.MustDecode("0x0042fafd")
-	testExecutableData.BlockHash = common.HexToHash("0x6a259b9a148da3cc0bf139eaa89292fa9f7b136cfeddad17f7cb0ae33e0c3df9")
-	testBlock, err = engine.ExecutableDataToBlock(*testExecutableData, nil, nil)
+	testExecutableData.BlockHash = common.HexToHash("0x0579b1aaca5c079c91e5774bac72c7f9bc2ddf2b126e9c632be68a1cb8f3fc71")
+	testBlock, err = engine.ExecutableDataToBlock(*testExecutableData)
 	testEthService.testBlockValue = big.NewInt(10)
 	require.NoError(t, err)
 	testEthService.testBlock = testBlock

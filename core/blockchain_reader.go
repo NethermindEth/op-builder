@@ -17,7 +17,6 @@
 package core
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/triedb"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
@@ -218,11 +217,7 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	if number == nil {
 		return nil
 	}
-	header := bc.GetHeader(hash, *number)
-	if header == nil {
-		return nil
-	}
-	receipts := rawdb.ReadReceipts(bc.db, hash, *number, header.Time, bc.chainConfig)
+	receipts := rawdb.ReadReceipts(bc.db, hash, *number, bc.chainConfig)
 	if receipts == nil {
 		return nil
 	}
@@ -255,46 +250,20 @@ func (bc *BlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, max
 	return bc.hc.GetAncestor(hash, number, ancestor, maxNonCanonical)
 }
 
-// GetTransactionLookup retrieves the lookup along with the transaction
-// itself associate with the given transaction hash.
-//
-// An error will be returned if the transaction is not found, and background
-// indexing for transactions is still in progress. The transaction might be
-// reachable shortly once it's indexed.
-//
-// A null will be returned in the transaction is not found and background
-// transaction indexing is already finished. The transaction is not existent
-// from the node's perspective.
-func (bc *BlockChain) GetTransactionLookup(hash common.Hash) (*rawdb.LegacyTxLookupEntry, *types.Transaction, error) {
+// GetTransactionLookup retrieves the lookup associate with the given transaction
+// hash from the cache or database.
+func (bc *BlockChain) GetTransactionLookup(hash common.Hash) *rawdb.LegacyTxLookupEntry {
 	// Short circuit if the txlookup already in the cache, retrieve otherwise
-	if item, exist := bc.txLookupCache.Get(hash); exist {
-		return item.lookup, item.transaction, nil
+	if lookup, exist := bc.txLookupCache.Get(hash); exist {
+		return lookup
 	}
 	tx, blockHash, blockNumber, txIndex := rawdb.ReadTransaction(bc.db, hash)
 	if tx == nil {
-		progress, err := bc.TxIndexProgress()
-		if err != nil {
-			return nil, nil, nil
-		}
-		// The transaction indexing is not finished yet, returning an
-		// error to explicitly indicate it.
-		if !progress.Done() {
-			return nil, nil, errors.New("transaction indexing still in progress")
-		}
-		// The transaction is already indexed, the transaction is either
-		// not existent or not in the range of index, returning null.
-		return nil, nil, nil
+		return nil
 	}
-	lookup := &rawdb.LegacyTxLookupEntry{
-		BlockHash:  blockHash,
-		BlockIndex: blockNumber,
-		Index:      txIndex,
-	}
-	bc.txLookupCache.Add(hash, txLookup{
-		lookup:      lookup,
-		transaction: tx,
-	})
-	return lookup, tx, nil
+	lookup := &rawdb.LegacyTxLookupEntry{BlockHash: blockHash, BlockIndex: blockNumber, Index: txIndex}
+	bc.txLookupCache.Add(hash, lookup)
+	return lookup
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the
@@ -320,16 +289,16 @@ func (bc *BlockChain) HasBlockAndState(hash common.Hash, number uint64) bool {
 	return bc.HasState(block.Root())
 }
 
-// stateRecoverable checks if the specified state is recoverable.
-// Note, this function assumes the state is not present, because
-// state is not treated as recoverable if it's available, thus
-// false will be returned in this case.
-func (bc *BlockChain) stateRecoverable(root common.Hash) bool {
-	if bc.triedb.Scheme() == rawdb.HashScheme {
-		return false
-	}
-	result, _ := bc.triedb.Recoverable(root)
-	return result
+// TrieNode retrieves a blob of data associated with a trie node
+// either from ephemeral in-memory cache, or from persistent storage.
+func (bc *BlockChain) TrieNode(hash common.Hash) ([]byte, error) {
+	return bc.stateCache.TrieDB().Node(hash)
+}
+
+// ContractCode retrieves a blob of data associated with a contract hash
+// either from ephemeral in-memory cache, or from persistent storage.
+func (bc *BlockChain) ContractCode(hash common.Hash) ([]byte, error) {
+	return bc.stateCache.ContractCode(common.Hash{}, hash)
 }
 
 // ContractCodeWithPrefix retrieves a blob of data associated with a contract
@@ -339,11 +308,9 @@ func (bc *BlockChain) stateRecoverable(root common.Hash) bool {
 // new code scheme.
 func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash) ([]byte, error) {
 	type codeReader interface {
-		ContractCodeWithPrefix(address common.Address, codeHash common.Hash) ([]byte, error)
+		ContractCodeWithPrefix(addrHash, codeHash common.Hash) ([]byte, error)
 	}
-	// TODO(rjl493456442) The associated account address is also required
-	// in Verkle scheme. Fix it once snap-sync is supported for Verkle.
-	return bc.stateCache.(codeReader).ContractCodeWithPrefix(common.Address{}, hash)
+	return bc.stateCache.(codeReader).ContractCodeWithPrefix(common.Hash{}, hash)
 }
 
 // State returns a new mutable state based on the current HEAD block.
@@ -397,22 +364,21 @@ func (bc *BlockChain) GetVMConfig() *vm.Config {
 	return &bc.vmConfig
 }
 
-// TxIndexProgress returns the transaction indexing progress.
-func (bc *BlockChain) TxIndexProgress() (TxIndexProgress, error) {
-	if bc.txIndexer == nil {
-		return TxIndexProgress{}, errors.New("tx indexer is not enabled")
-	}
-	return bc.txIndexer.txIndexProgress()
+// SetTxLookupLimit is responsible for updating the txlookup limit to the
+// original one stored in db if the new mismatches with the old one.
+func (bc *BlockChain) SetTxLookupLimit(limit uint64) {
+	bc.txLookupLimit = limit
+}
+
+// TxLookupLimit retrieves the txlookup limit used by blockchain to prune
+// stale transaction indices.
+func (bc *BlockChain) TxLookupLimit() uint64 {
+	return bc.txLookupLimit
 }
 
 // TrieDB retrieves the low level trie database used for data storage.
-func (bc *BlockChain) TrieDB() *triedb.Database {
+func (bc *BlockChain) TrieDB() *trie.Database {
 	return bc.triedb
-}
-
-// HeaderChain returns the underlying header chain.
-func (bc *BlockChain) HeaderChain() *HeaderChain {
-	return bc.hc
 }
 
 // SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.

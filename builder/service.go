@@ -30,7 +30,7 @@ const (
 	_PathStatus            = "/eth/v1/builder/status"
 	_PathRegisterValidator = "/eth/v1/builder/validators"
 	_PathGetHeader         = "/eth/v1/builder/header/{slot:[0-9]+}/{parent_hash:0x[a-fA-F0-9]+}/{pubkey:0x[a-fA-F0-9]+}"
-	_PathGetPayload        = "/eth/v1/builder/blinded_blocks"
+	_PathGetPayload        = "/eth/v1/builder/get_payload/{parent_hash:0x[a-fA-F0-9]+}"
 )
 
 type Service struct {
@@ -69,7 +69,7 @@ func getRouter(localRelay *LocalRelay) http.Handler {
 	router.HandleFunc(_PathStatus, localRelay.handleStatus).Methods(http.MethodGet)
 	router.HandleFunc(_PathRegisterValidator, localRelay.handleRegisterValidator).Methods(http.MethodPost)
 	router.HandleFunc(_PathGetHeader, localRelay.handleGetHeader).Methods(http.MethodGet)
-	router.HandleFunc(_PathGetPayload, localRelay.handleGetPayload).Methods(http.MethodPost)
+	router.HandleFunc(_PathGetPayload, localRelay.handleGetPayload).Methods(http.MethodGet)
 
 	// Add logging and return router
 	loggedRouter := httplogger.LoggingMiddleware(router)
@@ -157,7 +157,8 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 	if len(cfg.BeaconEndpoints) == 0 {
 		beaconClient = &NilBeaconClient{}
 	} else if len(cfg.BeaconEndpoints) == 1 {
-		beaconClient = NewBeaconClient(cfg.BeaconEndpoints[0], cfg.SlotsInEpoch, cfg.SecondsInSlot)
+		// beaconClient = NewBeaconClient(cfg.BeaconEndpoints[0], cfg.SlotsInEpoch, cfg.SecondsInSlot)
+		beaconClient = NewOpBeaconClient(cfg.BeaconEndpoints[0])
 	} else {
 		beaconClient = NewMultiBeaconClient(cfg.BeaconEndpoints, cfg.SlotsInEpoch, cfg.SecondsInSlot)
 	}
@@ -214,7 +215,7 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 				return fmt.Errorf("failed to load validation blocklist %w", err)
 			}
 		}
-		validator = blockvalidation.NewBlockValidationAPI(backend, accessVerifier, cfg.ValidationUseCoinbaseDiff, cfg.ValidationExcludeWithdrawals)
+		validator = blockvalidation.NewBlockValidationAPI(backend, accessVerifier)
 	}
 
 	// Set up builder rate limiter based on environment variables or CLI flags.
@@ -250,15 +251,6 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 		submissionOffset = SubmissionOffsetFromEndOfSlotSecondsDefault
 	}
 
-	var blockConsumer flashbotsextra.BlockConsumer
-	rpcURL := cfg.BlockProcessorURL
-	if rpcURL != "" {
-		blockConsumer = flashbotsextra.NewRpcBlockClient(rpcURL)
-	} else {
-		log.Warn("Block consumer url is empty. Built block data reporting is essentially disabled")
-		blockConsumer = flashbotsextra.NilDbService{}
-	}
-
 	// TODO: move to proper flags
 	var ds flashbotsextra.IDatabaseService
 	dbDSN := os.Getenv("FLASHBOTS_POSTGRES_DSN")
@@ -291,7 +283,6 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 
 	builderArgs := BuilderArgs{
 		sk:                            builderSk,
-		blockConsumer:                 blockConsumer,
 		ds:                            ds,
 		dryRun:                        cfg.DryRun,
 		eth:                           ethereumService,
@@ -299,7 +290,6 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 		builderSigningDomain:          builderSigningDomain,
 		builderBlockResubmitInterval:  builderRateLimitInterval,
 		submissionOffsetFromEndOfSlot: submissionOffset,
-		discardRevertibleTxOnErr:      cfg.DiscardRevertibleTxOnErr,
 		ignoreLatePayloadAttributes:   cfg.IgnoreLatePayloadAttributes,
 		validator:                     validator,
 		beaconClient:                  beaconClient,
