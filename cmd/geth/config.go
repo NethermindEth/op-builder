@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/suave"
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 )
@@ -93,6 +94,7 @@ type gethConfig struct {
 	Ethstats ethstatsConfig
 	Metrics  metrics.Config
 	Builder  builder.Config
+	Suave    suave.Config
 }
 
 func loadConfig(file string, cfg *gethConfig) error {
@@ -129,6 +131,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		Node:    defaultNodeConfig(),
 		Metrics: metrics.DefaultConfig,
 		Builder: builder.DefaultConfig,
+		Suave:   suave.DefaultConfig,
 	}
 
 	// Load config file.
@@ -157,6 +160,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	// Apply builder flags
 	utils.SetBuilderConfig(ctx, &cfg.Builder)
+	utils.SetSuaveConfig(ctx, &cfg.Suave)
 
 	return stack, cfg
 }
@@ -181,7 +185,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		cfg.Eth.OverrideOptimism = &override
 	}
 
-	backend, eth := utils.RegisterEthService(stack, &cfg.Eth, &cfg.Builder)
+	backend, eth := utils.RegisterEthService(stack, &cfg.Eth, &cfg.Builder, &cfg.Suave)
 
 	// Configure log filter RPC API.
 	filterSystem := utils.RegisterFilterAPI(stack, backend, &cfg.Eth)

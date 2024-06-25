@@ -76,6 +76,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/suave"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -880,6 +881,19 @@ var (
 		Name:     "builder.cancellations",
 		Usage:    "Enable cancellations for the builder",
 		Category: flags.BuilderCategory,
+	}
+
+	// SUAVE namespace rpc settings
+	SuaveEnabled = &cli.BoolFlag{
+		Name:     "suave",
+		Usage:    "Enable the suave",
+		Category: flags.SuaveCategory,
+	}
+
+	SuaveBeaconEndpoint = &cli.StringFlag{
+		Name:     "suave.beacon_endpoint",
+		Usage:    "Beacon endpoint.",
+		Category: flags.SuaveCategory,
 	}
 
 	// RPC settings
@@ -1734,6 +1748,11 @@ func SetBuilderConfig(ctx *cli.Context, cfg *builder.Config) {
 	cfg.EnableCancellations = ctx.IsSet(BuilderEnableCancellations.Name)
 }
 
+func SetSuaveConfig(ctx *cli.Context, cfg *suave.Config) {
+	cfg.Enabled = ctx.IsSet(SuaveEnabled.Name)
+	cfg.BeaconEndpoint = ctx.String(SuaveBeaconEndpoint.Name)
+}
+
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
@@ -2308,7 +2327,7 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 // RegisterEthService adds an Ethereum client to the stack.
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
-func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.Config) (ethapi.Backend, *eth.Ethereum) {
+func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.Config, suaveConfig *suave.Config) (ethapi.Backend, *eth.Ethereum) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
 		if err != nil {
@@ -2337,6 +2356,13 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.
 	if bpCfg.Enabled {
 		if err := builder.Register(stack, backend, bpCfg); err != nil {
 			Fatalf("Failed to register the builder service: %v", err)
+		}
+	}
+
+	if suaveConfig.Enabled {
+		log.Info("Enable suave service")
+		if err := suave.Register(stack, backend, suaveConfig); err != nil {
+			Fatalf("Failed to register the suave service: %v", err)
 		}
 	}
 

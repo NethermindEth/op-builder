@@ -192,6 +192,11 @@ var (
 		utils.BuilderEnableCancellations,
 	}
 
+	suaveApiFlags = []cli.Flag{
+		utils.SuaveEnabled,
+		utils.SuaveBeaconEndpoint,
+	}
+
 	rpcFlags = []cli.Flag{
 		utils.HTTPEnabledFlag,
 		utils.HTTPListenAddrFlag,
@@ -287,6 +292,7 @@ func init() {
 		nodeFlags,
 		rpcFlags,
 		builderApiFlags,
+		suaveApiFlags,
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,

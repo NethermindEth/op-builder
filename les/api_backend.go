@@ -342,6 +342,14 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
 
+func (b *LesApiBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *types.BuildBlockArgs, txs types.Transactions) (*types.Block, *big.Int, error) {
+	panic("BuildBlockFromTxs is not supported in light client mode")
+}
+
+func (b *LesApiBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *types.BuildBlockArgs, bundles []types.SBundleFromSuave) (*types.Block, *big.Int, error) {
+	panic("BuildBlockFromBundles is not supported in light client mode")
+}
+
 func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error) {
 	return b.eth.stateAtBlock(ctx, block, reexec)
 }
