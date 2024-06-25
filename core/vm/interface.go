@@ -22,16 +22,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // StateDB is an EVM database for full state querying.
 type StateDB interface {
 	CreateAccount(common.Address)
 
-	SubBalance(common.Address, *uint256.Int)
-	AddBalance(common.Address, *uint256.Int)
-	GetBalance(common.Address) *uint256.Int
+	SubBalance(common.Address, *big.Int)
+	AddBalance(common.Address, *big.Int)
+	GetBalance(common.Address) *big.Int
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
@@ -52,13 +51,11 @@ type StateDB interface {
 	GetTransientState(addr common.Address, key common.Hash) common.Hash
 	SetTransientState(addr common.Address, key, value common.Hash)
 
-	SelfDestruct(common.Address)
-	HasSelfDestructed(common.Address) bool
-
-	Selfdestruct6780(common.Address)
+	Suicide(common.Address) bool
+	HasSuicided(common.Address) bool
 
 	// Exist reports whether the given account exists in state.
-	// Notably this should also return true for self-destructed accounts.
+	// Notably this should also return true for suicided accounts.
 	Exist(common.Address) bool
 	// Empty returns whether the given account is empty. Empty
 	// is defined according to EIP161 (balance = nonce = code = 0).

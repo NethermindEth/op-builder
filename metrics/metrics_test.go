@@ -18,7 +18,6 @@ func TestReadRuntimeValues(t *testing.T) {
 func BenchmarkMetrics(b *testing.B) {
 	r := NewRegistry()
 	c := NewRegisteredCounter("counter", r)
-	cf := NewRegisteredCounterFloat64("counterfloat64", r)
 	g := NewRegisteredGauge("gauge", r)
 	gf := NewRegisteredGaugeFloat64("gaugefloat64", r)
 	h := NewRegisteredHistogram("histogram", r, NewUniformSample(100))
@@ -72,7 +71,6 @@ func BenchmarkMetrics(b *testing.B) {
 			//log.Println("go", i)
 			for i := 0; i < b.N; i++ {
 				c.Inc(1)
-				cf.Inc(1.0)
 				g.Update(int64(i))
 				gf.Update(float64(i))
 				h.Update(int64(i))
@@ -98,8 +96,8 @@ func Example() {
 	t.Time(func() { time.Sleep(10 * time.Millisecond) })
 	t.Update(1)
 
-	fmt.Println(c.Snapshot().Count())
-	fmt.Println(t.Snapshot().Min())
+	fmt.Println(c.Count())
+	fmt.Println(t.Min())
 	// Output: 17
 	// 1
 }

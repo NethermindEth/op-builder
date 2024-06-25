@@ -3,16 +3,14 @@ package miner
 import (
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
 	"sort"
-	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // / To use it:
@@ -24,60 +22,78 @@ type greedyBucketsBuilder struct {
 	inputEnvironment *environment
 	chainData        chainData
 	builderKey       *ecdsa.PrivateKey
-	interrupt        *atomic.Int32
-	gasUsedMap       map[*txWithMinerFee]uint64
+	interrupt        *int32
+	gasUsedMap       map[*types.TxWithMinerFee]uint64
 	algoConf         algorithmConfig
 }
 
 func newGreedyBucketsBuilder(
 	chain *core.BlockChain, chainConfig *params.ChainConfig, algoConf *algorithmConfig,
-	blacklist map[common.Address]struct{}, env *environment, key *ecdsa.PrivateKey, interrupt *atomic.Int32,
+	blacklist map[common.Address]struct{}, env *environment, key *ecdsa.PrivateKey, interrupt *int32,
 ) *greedyBucketsBuilder {
 	if algoConf == nil {
-		panic("algoConf cannot be nil")
+		algoConf = &algorithmConfig{
+			EnforceProfit:          true,
+			ExpectedProfit:         nil,
+			ProfitThresholdPercent: defaultProfitThreshold,
+		}
 	}
-
 	return &greedyBucketsBuilder{
 		inputEnvironment: env,
 		chainData:        chainData{chainConfig: chainConfig, chain: chain, blacklist: blacklist},
 		builderKey:       key,
 		interrupt:        interrupt,
-		gasUsedMap:       make(map[*txWithMinerFee]uint64),
+		gasUsedMap:       make(map[*types.TxWithMinerFee]uint64),
 		algoConf:         *algoConf,
 	}
 }
 
 // CutoffPriceFromOrder returns the cutoff price for a given order based on the cutoff percent.
 // For example, if the cutoff percent is 90, the cutoff price will be 90% of the order price, rounded down to the nearest integer.
-func CutoffPriceFromOrder(order *txWithMinerFee, cutoffPercent int) *uint256.Int {
+func CutoffPriceFromOrder(order *types.TxWithMinerFee, cutoffPercent int) *big.Int {
 	return common.PercentOf(order.Price(), cutoffPercent)
 }
 
 // IsOrderInPriceRange returns true if the order price is greater than or equal to the minPrice.
-func IsOrderInPriceRange(order *txWithMinerFee, minPrice *uint256.Int) bool {
+func IsOrderInPriceRange(order *types.TxWithMinerFee, minPrice *big.Int) bool {
 	return order.Price().Cmp(minPrice) >= 0
 }
 
 func (b *greedyBucketsBuilder) commit(envDiff *environmentDiff,
-	transactions []*txWithMinerFee,
-	orders *transactionsByPriceAndNonce,
-	gasUsedMap map[*txWithMinerFee]uint64, retryMap map[*txWithMinerFee]int, retryLimit int,
+	transactions []*types.TxWithMinerFee,
+	orders *types.TransactionsByPriceAndNonce,
+	gasUsedMap map[*types.TxWithMinerFee]uint64, retryMap map[*types.TxWithMinerFee]int, retryLimit int,
 ) ([]types.SimulatedBundle, []types.UsedSBundle) {
 	var (
-		algoConf = b.algoConf
-
 		usedBundles  []types.SimulatedBundle
 		usedSbundles []types.UsedSBundle
+		algoConf     = b.algoConf
+
+		CheckRetryOrderAndReinsert = func(
+			order *types.TxWithMinerFee, orders *types.TransactionsByPriceAndNonce,
+			retryMap map[*types.TxWithMinerFee]int, retryLimit int,
+		) bool {
+			var isRetryable bool = false
+			if retryCount, exists := retryMap[order]; exists {
+				if retryCount != retryLimit {
+					isRetryable = true
+					retryMap[order] = retryCount + 1
+				}
+			} else {
+				retryMap[order] = 0
+				isRetryable = true
+			}
+
+			if isRetryable {
+				orders.Push(order)
+			}
+
+			return isRetryable
+		}
 	)
 
 	for _, order := range transactions {
-		if lazyTx := order.Tx(); lazyTx != nil {
-			tx := lazyTx.Resolve()
-			if tx == nil {
-				log.Trace("Ignoring evicted transaction", "hash", lazyTx.Hash)
-				orders.Pop()
-				continue
-			}
+		if tx := order.Tx(); tx != nil {
 			receipt, skip, err := envDiff.commitTx(tx, b.chainData)
 			if err != nil {
 				log.Trace("could not apply tx", "hash", tx.Hash(), "err", err)
@@ -123,7 +139,7 @@ func (b *greedyBucketsBuilder) commit(envDiff *environmentDiff,
 			}
 
 			log.Trace("Included bundle", "bundleEGP", bundle.MevGasPrice.String(),
-				"gasUsed", bundle.TotalGasUsed, "ethToCoinbase", ethIntToFloat(bundle.EthSentToCoinbase))
+				"gasUsed", bundle.TotalGasUsed, "ethToCoinbase", ethIntToFloat(bundle.TotalEth))
 			usedBundles = append(usedBundles, *bundle)
 		} else if sbundle := order.SBundle(); sbundle != nil {
 			usedEntry := types.UsedSBundle{
@@ -165,7 +181,7 @@ func (b *greedyBucketsBuilder) commit(envDiff *environmentDiff,
 }
 
 func (b *greedyBucketsBuilder) mergeOrdersIntoEnvDiff(
-	envDiff *environmentDiff, orders *transactionsByPriceAndNonce) ([]types.SimulatedBundle, []types.UsedSBundle,
+	envDiff *environmentDiff, orders *types.TransactionsByPriceAndNonce) ([]types.SimulatedBundle, []types.UsedSBundle,
 ) {
 	if orders.Peek() == nil {
 		return nil, nil
@@ -174,14 +190,14 @@ func (b *greedyBucketsBuilder) mergeOrdersIntoEnvDiff(
 	const retryLimit = 1
 
 	var (
-		baseFee            = uint256.MustFromBig(envDiff.baseEnvironment.header.BaseFee)
-		retryMap           = make(map[*txWithMinerFee]int)
+		baseFee            = envDiff.baseEnvironment.header.BaseFee
+		retryMap           = make(map[*types.TxWithMinerFee]int)
 		usedBundles        []types.SimulatedBundle
 		usedSbundles       []types.UsedSBundle
-		transactions       []*txWithMinerFee
+		transactions       []*types.TxWithMinerFee
 		priceCutoffPercent = b.algoConf.PriceCutoffPercent
 
-		SortInPlaceByProfit = func(baseFee *uint256.Int, transactions []*txWithMinerFee, gasUsedMap map[*txWithMinerFee]uint64) {
+		SortInPlaceByProfit = func(baseFee *big.Int, transactions []*types.TxWithMinerFee, gasUsedMap map[*types.TxWithMinerFee]uint64) {
 			sort.SliceStable(transactions, func(i, j int) bool {
 				return transactions[i].Profit(baseFee, gasUsedMap[transactions[i]]).Cmp(transactions[j].Profit(baseFee, gasUsedMap[transactions[j]])) > 0
 			})
@@ -223,10 +239,9 @@ func (b *greedyBucketsBuilder) mergeOrdersIntoEnvDiff(
 	return usedBundles, usedSbundles
 }
 
-func (b *greedyBucketsBuilder) buildBlock(simBundles []types.SimulatedBundle, simSBundles []*types.SimSBundle, transactions map[common.Address][]*txpool.LazyTransaction) (*environment, []types.SimulatedBundle, []types.UsedSBundle) {
-	orders := newTransactionsByPriceAndNonce(b.inputEnvironment.signer, transactions, simBundles, simSBundles, b.inputEnvironment.header.BaseFee)
+func (b *greedyBucketsBuilder) buildBlock(simBundles []types.SimulatedBundle, simSBundles []*types.SimSBundle, transactions map[common.Address]types.Transactions) (*environment, []types.SimulatedBundle, []types.UsedSBundle) {
+	orders := types.NewTransactionsByPriceAndNonce(b.inputEnvironment.signer, transactions, simBundles, simSBundles, b.inputEnvironment.header.BaseFee)
 	envDiff := newEnvironmentDiff(b.inputEnvironment.copy())
-	b.inputEnvironment.state.StopPrefetcher()
 	usedBundles, usedSbundles := b.mergeOrdersIntoEnvDiff(envDiff, orders)
 	envDiff.applyToBaseEnv()
 	return envDiff.baseEnvironment, usedBundles, usedSbundles

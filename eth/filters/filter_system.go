@@ -299,9 +299,6 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit ethereum.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
-	if len(crit.Topics) > maxTopics {
-		return nil, errExceedMaxTopics
-	}
 	var from, to rpc.BlockNumber
 	if crit.FromBlock == nil {
 		from = rpc.LatestBlockNumber
@@ -334,7 +331,7 @@ func (es *EventSystem) SubscribeLogs(crit ethereum.FilterQuery, logs chan []*typ
 	if from >= 0 && to == rpc.LatestBlockNumber {
 		return es.subscribeLogs(crit, logs), nil
 	}
-	return nil, errInvalidBlockRange
+	return nil, fmt.Errorf("invalid from and to block combination: from > to")
 }
 
 // subscribeMinedPendingLogs creates a subscription that returned mined and
@@ -440,6 +437,15 @@ func (es *EventSystem) handlePendingLogs(filters filterIndex, ev []*types.Log) {
 	}
 	for _, f := range filters[PendingLogsSubscription] {
 		matchedLogs := filterLogs(ev, nil, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
+		if len(matchedLogs) > 0 {
+			f.logs <- matchedLogs
+		}
+	}
+}
+
+func (es *EventSystem) handleRemovedLogs(filters filterIndex, ev core.RemovedLogsEvent) {
+	for _, f := range filters[LogsSubscription] {
+		matchedLogs := filterLogs(ev.Logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
 		if len(matchedLogs) > 0 {
 			f.logs <- matchedLogs
 		}
@@ -566,7 +572,7 @@ func (es *EventSystem) eventLoop() {
 		case ev := <-es.logsCh:
 			es.handleLogs(index, ev)
 		case ev := <-es.rmLogsCh:
-			es.handleLogs(index, ev.Logs)
+			es.handleRemovedLogs(index, ev)
 		case ev := <-es.pendingLogsCh:
 			es.handlePendingLogs(index, ev)
 		case ev := <-es.chainCh:

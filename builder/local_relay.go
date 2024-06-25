@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	builderApi "github.com/attestantio/go-builder-client/api"
-	builderApiBellatrix "github.com/attestantio/go-builder-client/api/bellatrix"
-	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
-	builderSpec "github.com/attestantio/go-builder-client/spec"
-	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
-	"github.com/attestantio/go-eth2-client/spec"
+	bellatrixapi "github.com/attestantio/go-builder-client/api/bellatrix"
+	capellaapi "github.com/attestantio/go-builder-client/api/capella"
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
+	"github.com/attestantio/go-builder-client/spec"
+	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
+	bellatrixutil "github.com/attestantio/go-eth2-client/util/bellatrix"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -30,8 +30,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 )
-
-// TODO (deneb): remove local relay
 
 type ForkData struct {
 	GenesisForkVersion    string
@@ -112,9 +110,15 @@ func (r *LocalRelay) Stop() {
 	r.beaconClient.Stop()
 }
 
-func (r *LocalRelay) SubmitBlock(msg *builderSpec.VersionedSubmitBlockRequest, _ ValidatorData) error {
-	log.Info("submitting block to local relay", "block", msg.Bellatrix.ExecutionPayload.BlockHash.String())
-	return r.submitBlock(msg.Bellatrix)
+func (r *LocalRelay) SubmitBlock(msg *bellatrixapi.SubmitBlockRequest, _ ValidatorData) error {
+	log.Info("submitting block to local relay", "block", msg.ExecutionPayload.BlockHash.String())
+	return r.submitBlock(msg)
+}
+
+func (r *LocalRelay) SubmitBlockCapella(msg *capellaapi.SubmitBlockRequest, _ ValidatorData) error {
+	log.Info("submitting block to local relay", "block", msg.ExecutionPayload.BlockHash.String())
+
+	return r.submitBlockCapella(msg)
 }
 
 func (r *LocalRelay) Config() RelayConfig {
@@ -122,7 +126,12 @@ func (r *LocalRelay) Config() RelayConfig {
 	return RelayConfig{}
 }
 
-func (r *LocalRelay) submitBlock(msg *builderApiBellatrix.SubmitBlockRequest) error {
+// TODO: local relay support for capella
+func (r *LocalRelay) submitBlockCapella(msg *capellaapi.SubmitBlockRequest) error {
+	return nil
+}
+
+func (r *LocalRelay) submitBlock(msg *bellatrixapi.SubmitBlockRequest) error {
 	header, err := PayloadToPayloadHeader(msg.ExecutionPayload)
 	if err != nil {
 		log.Error("could not convert payload to header", "err", err)
@@ -139,7 +148,7 @@ func (r *LocalRelay) submitBlock(msg *builderApiBellatrix.SubmitBlockRequest) er
 }
 
 func (r *LocalRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []builderApiV1.SignedValidatorRegistration{}
+	payload := []apiv1.SignedValidatorRegistration{}
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		log.Error("could not decode payload", "err", err)
 		respondError(w, http.StatusBadRequest, "invalid payload")
@@ -269,7 +278,7 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bid := builderApiBellatrix.BuilderBid{
+	bid := bellatrixapi.BuilderBid{
 		Header: bestHeader,
 		Value:  profit,
 		Pubkey: r.relayPublicKey,
@@ -280,9 +289,9 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	response := &builderSpec.VersionedSignedBuilderBid{
-		Version:   spec.DataVersionBellatrix,
-		Bellatrix: &builderApiBellatrix.SignedBuilderBid{Message: &bid, Signature: signature},
+	response := &spec.VersionedSignedBuilderBid{
+		Version:   consensusspec.DataVersionBellatrix,
+		Bellatrix: &bellatrixapi.SignedBuilderBid{Message: &bid, Signature: signature},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -294,12 +303,14 @@ func (r *LocalRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	payload := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		log.Error("failed to decode payload", "error", err)
-		respondError(w, http.StatusBadRequest, "invalid payload")
-		return
-	}
+	vars := mux.Vars(req)
+	// slot, err := strconv.Atoi(vars["slot"])
+	// if err != nil {
+	// 	respondError(w, http.StatusBadRequest, "incorrect slot")
+	// 	return
+	// }
+	parentHash := phase0.Hash32(common.HexToHash(vars["parent_hash"]))
+	// pubkeyHex := PubkeyHex(strings.ToLower(vars["pubkey"]))
 
 	// We don't need to check validators duties or proposer key here
 
@@ -319,9 +330,34 @@ func (r *LocalRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	}
     log.Info("Got best header", "id", fmt.Sprintf("%s:%d", bestPayload.BlockHash, bestPayload.BlockNumber))
 
-	response := &builderApi.VersionedExecutionPayload{
-		Version:   spec.DataVersionBellatrix,
-		Bellatrix: bestPayload,
+	// seek no proposer for a slot or signature verification here
+
+	// skip check: !ExecutionPayloadHeaderEqual(bestHeader, payload.Message.Body.ExecutionPayloadHeader)
+
+	txs := make([]Data, len(bestPayload.Transactions))
+	for i, tx := range bestPayload.Transactions {
+		txs[i] = Data(tx)
+	}
+
+	baseFeePerGas := boostTypes.U256Str(bestPayload.BaseFeePerGas)
+
+	response := &ExecutionPayload{
+		ParentHash:    common.Hash(bestPayload.ParentHash),
+		FeeRecipient:  common.Address(bestPayload.FeeRecipient),
+		StateRoot:     bestPayload.StateRoot,
+		ReceiptsRoot:  bestPayload.ReceiptsRoot,
+		LogsBloom:     bestPayload.LogsBloom,
+		PrevRandao:    bestPayload.PrevRandao,
+		BlockNumber:   hexutil.Uint64(bestPayload.BlockNumber),
+		GasLimit:      hexutil.Uint64(bestPayload.GasLimit),
+		GasUsed:       hexutil.Uint64(bestPayload.GasUsed),
+		Timestamp:     hexutil.Uint64(bestPayload.Timestamp),
+		ExtraData:     bestPayload.ExtraData,
+		BaseFeePerGas: *uint256.MustFromBig(baseFeePerGas.BigInt()),
+		BlockHash:     common.Hash(bestPayload.BlockHash),
+		// Array of transaction objects, each object is a byte list (DATA) representing
+		// TransactionType || TransactionPayload or LegacyTransaction as defined in EIP-2718
+		Transactions: txs,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -405,7 +441,7 @@ func PayloadToPayloadHeader(p *bellatrix.ExecutionPayload) (*bellatrix.Execution
 	var txs []bellatrix.Transaction
 	txs = append(txs, p.Transactions...)
 
-	transactions := eth2UtilBellatrix.ExecutionPayloadTransactions{Transactions: txs}
+	transactions := bellatrixutil.ExecutionPayloadTransactions{Transactions: txs}
 	txroot, err := transactions.HashTreeRoot()
 	if err != nil {
 		return nil, err
