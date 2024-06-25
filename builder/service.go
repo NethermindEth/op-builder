@@ -215,7 +215,7 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 				return fmt.Errorf("failed to load validation blocklist %w", err)
 			}
 		}
-		validator = blockvalidation.NewBlockValidationAPI(backend, accessVerifier)
+		validator = blockvalidation.NewBlockValidationAPI(backend, accessVerifier, cfg.ValidationUseCoinbaseDiff, cfg.ValidationExcludeWithdrawals)
 	}
 
 	// Set up builder rate limiter based on environment variables or CLI flags.
@@ -251,6 +251,15 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 		submissionOffset = SubmissionOffsetFromEndOfSlotSecondsDefault
 	}
 
+	var blockConsumer flashbotsextra.BlockConsumer
+	rpcURL := cfg.BlockProcessorURL
+	if rpcURL != "" {
+		blockConsumer = flashbotsextra.NewRpcBlockClient(rpcURL)
+	} else {
+		log.Warn("Block consumer url is empty. Built block data reporting is essentially disabled")
+		blockConsumer = flashbotsextra.NilDbService{}
+	}
+
 	// TODO: move to proper flags
 	var ds flashbotsextra.IDatabaseService
 	dbDSN := os.Getenv("FLASHBOTS_POSTGRES_DSN")
@@ -283,6 +292,7 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 
 	builderArgs := BuilderArgs{
 		sk:                            builderSk,
+		blockConsumer:                 blockConsumer,
 		ds:                            ds,
 		dryRun:                        cfg.DryRun,
 		eth:                           ethereumService,
@@ -290,6 +300,7 @@ func Register(stack *node.Node, backend *eth.Ethereum, cfg *Config) error {
 		builderSigningDomain:          builderSigningDomain,
 		builderBlockResubmitInterval:  builderRateLimitInterval,
 		submissionOffsetFromEndOfSlot: submissionOffset,
+		discardRevertibleTxOnErr:      cfg.DiscardRevertibleTxOnErr,
 		ignoreLatePayloadAttributes:   cfg.IgnoreLatePayloadAttributes,
 		validator:                     validator,
 		beaconClient:                  beaconClient,

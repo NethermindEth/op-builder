@@ -21,11 +21,15 @@ type Config struct {
 	RemoteRelayEndpoint              string        `toml:",omitempty"`
 	SecondaryRemoteRelayEndpoints    []string      `toml:",omitempty"`
 	ValidationBlocklist              string        `toml:",omitempty"`
+	ValidationUseCoinbaseDiff        bool          `toml:",omitempty"`
+	ValidationExcludeWithdrawals     bool          `toml:",omitempty"`
 	BuilderRateLimitDuration         string        `toml:",omitempty"`
 	BuilderRateLimitMaxBurst         int           `toml:",omitempty"`
 	BuilderRateLimitResubmitInterval string        `toml:",omitempty"`
 	BuilderSubmissionOffset          time.Duration `toml:",omitempty"`
+	DiscardRevertibleTxOnErr         bool          `toml:",omitempty"`
 	EnableCancellations              bool          `toml:",omitempty"`
+	BlockProcessorURL                string        `toml:",omitempty"`
 }
 
 // DefaultConfig is the default config for the builder.
@@ -48,8 +52,11 @@ var DefaultConfig = Config{
 	RemoteRelayEndpoint:           "",
 	SecondaryRemoteRelayEndpoints: nil,
 	ValidationBlocklist:           "",
+	ValidationUseCoinbaseDiff:     false,
+	ValidationExcludeWithdrawals:  false,
 	BuilderRateLimitDuration:      RateLimitIntervalDefault.String(),
 	BuilderRateLimitMaxBurst:      RateLimitBurstDefault,
+	DiscardRevertibleTxOnErr:      false,
 	EnableCancellations:           false,
 }
 

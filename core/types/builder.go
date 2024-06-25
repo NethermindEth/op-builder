@@ -12,9 +12,9 @@ type BuilderPayloadAttributes struct {
 	SuggestedFeeRecipient common.Address `json:"suggestedFeeRecipient,omitempty"`
 	Slot                  uint64         `json:"slot"`
 	HeadHash              common.Hash    `json:"blockHash"`
-	Withdrawals           Withdrawals    `json:"withdrawals,omitempty"`
-	Transactions          Transactions   `json:"transactions"`
-	GasLimit              uint64         `json:"gasLimit"`
+	Withdrawals           Withdrawals    `json:"withdrawals"`
+	ParentBeaconBlockRoot *common.Hash   `json:"parentBeaconBlockRoot"`
+	GasLimit              uint64
 }
 
 func (attrs *BuilderPayloadAttributes) Equal(other *BuilderPayloadAttributes) bool {
@@ -23,7 +23,8 @@ func (attrs *BuilderPayloadAttributes) Equal(other *BuilderPayloadAttributes) bo
 		attrs.SuggestedFeeRecipient != other.SuggestedFeeRecipient ||
 		attrs.Slot != other.Slot ||
 		attrs.HeadHash != other.HeadHash ||
-		attrs.GasLimit != other.GasLimit {
+		attrs.GasLimit != other.GasLimit ||
+		attrs.ParentBeaconBlockRoot != other.ParentBeaconBlockRoot {
 		return false
 	}
 
